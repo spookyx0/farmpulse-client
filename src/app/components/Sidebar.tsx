@@ -26,14 +26,14 @@ const staffLinks: NavLink[] = [
 
 const freezerVanLinks: NavLink[] = [
   { href: '/dashboard', label: 'Dashboard' },
-  { href: '/sales', label: 'Sales' },
-  { href: '/inventory', label: 'Inventory' },
+  { href: '/freezer-van/sales', label: 'Sales' },
+  { href: '/freezer-van/inventory', label: 'Inventory' },
 ];
 
 const liveChickenLinks: NavLink[] = [
   { href: '/dashboard', label: 'Dashboard' },
-  { href: '/distribution', label: 'Distribution' },
-  { href: '/inventory', label: 'Inventory' },
+  { href: '/live-chicken/distribution', label: 'Distribution' },
+  { href: '/live-chicken/inventory', label: 'Inventory' },
 ];
 
 const roleLinks = {
