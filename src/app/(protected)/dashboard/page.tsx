@@ -1,141 +1,182 @@
 "use client";
 
-import { useAuth } from '../../contexts/AuthContext'; // FIX: Relative path
-import { useSocket } from '../../contexts/SocketContext'; // FIX: Relative path
-import api from '../../services/api'; // FIX: Relative path
+import { useAuth } from '../../contexts/AuthContext';
+import { useSocket } from '../../contexts/SocketContext';
+import api from '../../services/api';
 import { useEffect, useState } from 'react';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
 
-// FIX: Define types for our data
-interface Branch {
-  name: string;
+// --- Types ---
+interface DashboardSummary {
+  totalSales: number;
+  totalExpenses: number;
+  netProfit: number;
+  breakdown: {
+    branchSales: number;
+    freezerVanSales: number;
+    liveChickenSales: number;
+  };
 }
-interface Staff {
-  username: string;
-}
-interface Sale {
+
+interface SaleUpdate {
   id: number;
-  branch: Branch;
+  branch: { name: string };
   total_amount: number;
-  staff: Staff;
-}
-interface Delivery {
-  id: number;
-  branch: Branch;
-  status: 'PENDING' | 'IN_TRANSIT' | 'DELIVERED';
+  staff: { username: string };
 }
 
-// A simple dashboard showing recent events
 export default function DashboardPage() {
   const { user } = useAuth();
   const socket = useSocket();
-  const [recentSales, setRecentSales] = useState<Sale[]>([]); // FIX: Use Sale type
-  const [recentDeliveries, setRecentDeliveries] = useState<Delivery[]>([]); // FIX: Use Delivery type
+  
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [recentSales, setRecentSales] = useState<SaleUpdate[]>([]);
 
-  // Fetch initial data
-  useEffect(() => {
+  // Fetch Initial Data
+  const fetchSummary = async () => {
     if (user?.role === 'OWNER') {
-      // Fetch all deliveries for owner
-      api
-        .get('/deliveries/owner')
-        .then((res) => setRecentDeliveries(res.data.slice(0, 5))) // Get 5 most recent
-        .catch(console.error);
-
-      // TODO: We don't have an "all sales" endpoint,
-      // but we will get new ones from the socket.
+      try {
+        const res = await api.get<DashboardSummary>('/dashboard/summary');
+        setSummary(res.data);
+      } catch (err) {
+        console.error('Failed to load dashboard summary', err);
+      }
     }
+  };
+
+  useEffect(() => {
+    if (user) {
+      fetchSummary();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  // Set up socket listeners
+  // Real-time Listeners
   useEffect(() => {
     if (!socket || user?.role !== 'OWNER') return;
 
-    // Listen for new sales from any staff
-    socket.on('newSale', (saleData: Sale) => { // FIX: Use Sale type
-      console.log('Socket event: newSale', saleData);
-      setRecentSales((prevSales) => [saleData, ...prevSales].slice(0, 5));
+    // When a new sale happens, refresh the summary numbers
+    socket.on('newSale', (saleData: SaleUpdate) => {
+      setRecentSales((prev) => [saleData, ...prev].slice(0, 5));
+      fetchSummary(); // Re-fetch totals to stay accurate
     });
 
-    // Listen for deliveries marked as "delivered"
-    socket.on('deliveryUpdated', (deliveryData: Delivery) => { // FIX: Use Delivery type
-      console.log('Socket event: deliveryUpdated', deliveryData);
-      // Find and update the delivery in our list
-      setRecentDeliveries((prevDeliveries) =>
-        prevDeliveries.map((d) => (d.id === deliveryData.id ? deliveryData : d)),
-      );
-    });
-
-    // Clean up listeners
     return () => {
       socket.off('newSale');
-      socket.off('deliveryUpdated');
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [socket, user]);
 
-  // Conditionally render dashboard based on role
+  // --- RENDER FOR OWNER ---
   if (user?.role === 'OWNER') {
+    const chartData = summary ? [
+      { name: 'Branches', Sales: summary.breakdown.branchSales },
+      { name: 'Freezer Van', Sales: summary.breakdown.freezerVanSales },
+      { name: 'Live Chicken', Sales: summary.breakdown.liveChickenSales },
+    ] : [];
+
     return (
       <div className="space-y-8">
-        <h1 className="text-4xl font-bold">Owner Dashboard</h1>
+        <h1 className="text-3xl font-bold text-gray-800">Owner Dashboard</h1>
 
-        {/* TODO: Add stats cards for reports */}
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-green-500">
+            <h2 className="text-gray-500 font-medium">Total Sales</h2>
+            <p className="text-3xl font-bold text-gray-900">
+              ${summary?.totalSales.toFixed(2) || '0.00'}
+            </p>
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-red-500">
+            <h2 className="text-gray-500 font-medium">Total Expenses</h2>
+            <p className="text-3xl font-bold text-gray-900">
+              ${summary?.totalExpenses.toFixed(2) || '0.00'}
+            </p>
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-blue-500">
+            <h2 className="text-gray-500 font-medium">Net Profit</h2>
+            <p className={`text-3xl font-bold ${summary?.netProfit && summary.netProfit >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+              ${summary?.netProfit.toFixed(2) || '0.00'}
+            </p>
+          </div>
+        </div>
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          <div className="p-6 bg-white rounded-lg shadow">
-            <h2 className="text-2xl font-semibold">Recent Sales (Real-time)</h2>
-            <ul className="mt-4 space-y-2">
-              {recentSales.length > 0 ? (
-                recentSales.map((sale) => (
-                  <li key={sale.id} className="p-2 border-b">
-                    {sale.branch.name} - ${sale.total_amount} (by{' '}
-                    {sale.staff.username})
-                  </li>
-                ))
-              ) : (
-                <p className="text-gray-500">Waiting for new sales...</p>
-              )}
-            </ul>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Chart */}
+          <div className="bg-white p-6 rounded-lg shadow-md h-96">
+            <h3 className="text-xl font-semibold mb-4">Sales Breakdown</h3>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="Sales" fill="#4F46E5" />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
 
-          <div className="p-6 bg-white rounded-lg shadow">
-            <h2 className="text-2xl font-semibold">Recent Deliveries</h2>
-            <ul className="mt-4 space-y-2">
-              {recentDeliveries.map((del) => (
-                <li key={del.id} className="p-2 border-b">
-                  To: {del.branch.name} -{' '}
-                  <span
-                    className={`font-bold ${
-                      del.status === 'DELIVERED'
-                        ? 'text-green-600'
-                        : 'text-yellow-600'
-                    }`}
-                  >
-                    {del.status}
-                  </span>
-                </li>
-              ))}
-            </ul>
+          {/* Recent Activity */}
+          <div className="bg-white p-6 rounded-lg shadow-md h-96 overflow-y-auto">
+            <h3 className="text-xl font-semibold mb-4">Live Sales Feed</h3>
+            {recentSales.length > 0 ? (
+              <ul className="space-y-3">
+                {recentSales.map((sale, idx) => (
+                  <li key={idx} className="flex justify-between items-center p-3 bg-gray-50 rounded">
+                    <div>
+                      <p className="font-medium">{sale.branch?.name}</p>
+                      <p className="text-sm text-gray-500">By: {sale.staff?.username}</p>
+                    </div>
+                    <span className="font-bold text-green-600">+${sale.total_amount}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="text-center text-gray-500 mt-10">
+                <p>Waiting for sales...</p>
+                <p className="text-xs">Sales made by staff will appear here instantly.</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
     );
   }
 
-  // You would add "else if" blocks for other roles here
+  // --- RENDER FOR STAFF ---
   if (user?.role === 'STAFF') {
     return (
-      <h1 className="text-4xl font-bold">
-        Staff Dashboard (Branch: {user.branchId})
-      </h1>
+      <div className="space-y-6">
+        <h1 className="text-3xl font-bold">Staff Dashboard</h1>
+        <div className="bg-white p-8 rounded-lg shadow-md">
+           <h2 className="text-2xl mb-4">Welcome, {user.username}</h2>
+           <p className="text-gray-600">
+             You are logged into <strong>Branch ID: {user.branchId}</strong>.
+           </p>
+           <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-4 border rounded hover:bg-gray-50">
+                <h3 className="font-bold text-lg">Quick Action</h3>
+                <p>Go to <a href="/sales" className="text-blue-600 hover:underline">Sales Register</a> to record a new transaction.</p>
+              </div>
+              <div className="p-4 border rounded hover:bg-gray-50">
+                <h3 className="font-bold text-lg">Stock Check</h3>
+                <p>Check <a href="/inventory" className="text-blue-600 hover:underline">Inventory</a> to see current stock levels.</p>
+              </div>
+           </div>
+        </div>
+      </div>
     );
   }
 
-  if (user?.role === 'FREEZER_VAN') {
-    return <h1 className="text-4xl font-bold">Freezer Van Dashboard</h1>;
-  }
-
-  if (user?.role === 'LIVE_CHICKEN') {
-    return <h1 className="text-4xl font-bold">Live Chicken Dashboard</h1>;
-  }
-
-  return null; // Should be covered by layout
+  return <div className="p-8">Loading dashboard role...</div>;
 }
