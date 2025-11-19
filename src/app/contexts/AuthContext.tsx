@@ -4,13 +4,14 @@ import {
   createContext,
   useContext,
   useState,
+  useEffect,
   ReactNode,
   useCallback,
 } from 'react';
 import Cookies from 'js-cookie';
 import { useRouter } from 'next/navigation';
 
-// 1. Define the shape of the user and context
+// 1. Define Types
 interface User {
   id: number;
   username: string;
@@ -23,54 +24,50 @@ interface AuthContextType {
   login: (token: string) => void;
   logout: () => void;
   isAuthenticated: boolean;
+  isLoading: boolean; // We export this so Layout can wait
 }
 
-// 2. Create the Context
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// FIX: Create an initializer function
-// This function will run ONCE to get the initial state
-const getInitialUser = (): User | null => {
-  const token = Cookies.get('token');
-  if (token) {
-    try {
-      // Decode the token
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      if (payload.exp * 1000 > Date.now()) {
-        // Token is valid
-        return {
-          id: payload.sub,
-          username: payload.username,
-          role: payload.role,
-          branchId: payload.branchId,
-        };
-      } else {
-        // Token expired
-        Cookies.remove('token');
-      }
-    } catch (error) {
-      // Invalid token
-      Cookies.remove('token');
-    }
-  }
-  return null;
-};
-
-// 3. Create the Provider component
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  // FIX: Use the initializer function. This runs only on the first render.
-  const [user, setUser] = useState<User | null>(getInitialUser);
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true); // Start true to prevent hydration mismatch
   const router = useRouter();
 
-  // The logout function is still needed for the button/login
   const logout = useCallback(() => {
     Cookies.remove('token');
     setUser(null);
     router.push('/login');
   }, [router]);
 
-  // The useEffect for checking the token is no longer needed
-  // because useState(getInitialUser) already handled it.
+  // Check token purely on the client side to avoid Hydration Mismatch
+  useEffect(() => {
+    const checkAuth = () => {
+      const token = Cookies.get('token');
+      if (token) {
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          // Check expiry
+          if (payload.exp * 1000 > Date.now()) {
+            setUser({
+              id: payload.sub,
+              username: payload.username,
+              role: payload.role,
+              branchId: payload.branchId,
+            });
+          } else {
+            logout();
+          }
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        } catch (error) {
+          logout();
+        }
+      }
+      setIsLoading(false); // Loading finished (whether found or not)
+    };
+
+    checkAuth();
+  }, [logout]);
 
   const login = (token: string) => {
     Cookies.set('token', token, { expires: 1 });
@@ -86,14 +83,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <AuthContext.Provider
-      value={{ user, login, logout, isAuthenticated: !!user }}
+      value={{ user, login, logout, isAuthenticated: !!user, isLoading }}
     >
       {children}
     </AuthContext.Provider>
   );
 };
 
-// 4. Create a custom hook for easy access
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {

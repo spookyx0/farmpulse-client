@@ -10,23 +10,28 @@ export default function ProtectedLayout({
 }: {
   children: ReactNode;
 }) {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    // If not authenticated, redirect to login
-    if (!isAuthenticated) {
+    // Only redirect if we are DONE loading and NOT authenticated
+    if (!isLoading && !isAuthenticated) {
       router.push('/login');
     }
-  }, [isAuthenticated, router]);
+  }, [isLoading, isAuthenticated, router]);
 
-  // Don't render anything until auth state is confirmed
-  if (!user) {
+  // Show loading spinner while checking cookie
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        Loading...
+        <div className="text-lg font-semibold text-gray-600">Loading FarmPulse...</div>
       </div>
     );
+  }
+
+  // If not authenticated (and redirect hasn't happened yet), don't show content
+  if (!isAuthenticated) {
+    return null;
   }
 
   // Render the app shell
