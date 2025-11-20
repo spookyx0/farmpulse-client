@@ -4,25 +4,18 @@ import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/api';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-
-// --- Types ---
-interface Product {
-  id: number;
-  name: string;
-  selling_price?: number;
-}
+import { Card, CardContent, CardHeader } from '../../components/ui/Card';
+import { Package, Plus, RefreshCw, Tag } from 'lucide-react';
 
 interface InventoryItem {
   id: number;
   productId: number;
-  product?: Product;
   quantity: number;
-  purchase_price?: number;
-  selling_price?: number;
-  supplier?: string;
+  purchase_price?: number | string; // Can be string from DB
+  selling_price?: number | string;
+  product?: { name: string; selling_price?: number | string };
 }
 
-// Form Data Types
 interface AddStockFormData {
   productId: string;
   quantity: string;
@@ -35,22 +28,16 @@ export default function InventoryPage() {
   const { user } = useAuth();
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const { register, handleSubmit, reset } = useForm<AddStockFormData>();
-  const [refresh, setRefresh] = useState(false); // Trigger to re-fetch data
+  const [refresh, setRefresh] = useState(false);
 
-  // Fetch Data
   useEffect(() => {
     if (!user) return;
-
-    const endpoint =
-      user.role === 'OWNER' ? '/inventory/owner' : '/inventory/branch';
-
-    api
-      .get<InventoryItem[]>(endpoint)
+    const endpoint = user.role === 'OWNER' ? '/inventory/owner' : '/inventory/branch';
+    api.get<InventoryItem[]>(endpoint)
       .then((res) => setInventory(res.data))
-      .catch((err) => console.error(err));
+      .catch(console.error);
   }, [user, refresh]);
 
-  // Owner: Add Stock Function
   const onAddStock = async (data: AddStockFormData) => {
     try {
       await api.post('/inventory/owner/add', {
@@ -61,131 +48,115 @@ export default function InventoryPage() {
         supplier: data.supplier,
       });
       reset();
-      setRefresh(!refresh); // Reload table
-      alert('Stock added successfully!');
+      setRefresh(!refresh);
+      alert('Stock updated successfully');
     } catch (error) {
-      alert('Failed to add stock. Check console.');
-      console.error(error);
+      alert('Failed to update stock');
     }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 max-w-7xl mx-auto">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">
-          {user?.role === 'OWNER' ? 'Master Inventory' : 'Branch Inventory'}
-        </h1>
+        <div>
+          <h1 className="text-3xl font-bold text-slate-800 flex items-center gap-2">
+            <Package className="w-8 h-8 text-green-600" />
+            {user?.role === 'OWNER' ? 'Master Inventory' : 'Branch Stock'}
+          </h1>
+          <p className="text-slate-500 mt-1">Manage products, prices, and stock levels.</p>
+        </div>
+        <button onClick={() => setRefresh(!refresh)} className="p-2 text-slate-400 hover:text-green-600 transition-colors">
+          <RefreshCw className="w-5 h-5" />
+        </button>
       </div>
 
-      {/* Owner Add Stock Form */}
+      {/* Add Stock Form (Owner Only) */}
       {user?.role === 'OWNER' && (
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-xl font-semibold mb-4">
-            Add Stock to Master Inventory
-          </h2>
-          <form
-            onSubmit={handleSubmit(onAddStock)}
-            className="grid grid-cols-1 md:grid-cols-5 gap-4"
-          >
-            <input
-              {...register('productId')}
-              placeholder="Product ID"
-              type="number"
-              className="border p-2 rounded"
-              required
-            />
-            <input
-              {...register('quantity')}
-              placeholder="Quantity/Kilos"
-              type="number"
-              step="0.01"
-              className="border p-2 rounded"
-              required
-            />
-            <input
-              {...register('purchase_price')}
-              placeholder="Purchase Price"
-              type="number"
-              step="0.01"
-              className="border p-2 rounded"
-              required
-            />
-            <input
-              {...register('selling_price')}
-              placeholder="Selling Price"
-              type="number"
-              step="0.01"
-              className="border p-2 rounded"
-              required
-            />
-            <input
-              {...register('supplier')}
-              placeholder="Supplier"
-              className="border p-2 rounded"
-            />
-            <button
-              type="submit"
-              className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700 col-span-1 md:col-span-5"
-            >
-              Add Stock
-            </button>
-          </form>
-        </div>
+        <Card>
+          <CardHeader title="Add Incoming Stock" subtitle="Register new items or update existing stock levels." />
+          <CardContent>
+            <form onSubmit={handleSubmit(onAddStock)} className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
+              <div className="md:col-span-1">
+                <label className="block text-xs font-medium text-slate-500 mb-1">Product ID</label>
+                <div className="relative">
+                  <Tag className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                  <input {...register('productId')} type="number" className="pl-9 w-full border-slate-300 rounded-lg text-sm focus:ring-green-500 focus:border-green-500" placeholder="ID" required />
+                </div>
+              </div>
+              <div className="md:col-span-1">
+                <label className="block text-xs font-medium text-slate-500 mb-1">Quantity</label>
+                <input {...register('quantity')} type="number" step="0.01" className="w-full border-slate-300 rounded-lg text-sm focus:ring-green-500 focus:border-green-500" placeholder="0.00" required />
+              </div>
+              <div className="md:col-span-1">
+                <label className="block text-xs font-medium text-slate-500 mb-1">Buy Price</label>
+                <input {...register('purchase_price')} type="number" step="0.01" className="w-full border-slate-300 rounded-lg text-sm focus:ring-green-500 focus:border-green-500" placeholder="0.00" required />
+              </div>
+              <div className="md:col-span-1">
+                <label className="block text-xs font-medium text-slate-500 mb-1">Sell Price</label>
+                <input {...register('selling_price')} type="number" step="0.01" className="w-full border-slate-300 rounded-lg text-sm focus:ring-green-500 focus:border-green-500" placeholder="0.00" required />
+              </div>
+              <div className="md:col-span-1">
+                <label className="block text-xs font-medium text-slate-500 mb-1">Supplier</label>
+                <input {...register('supplier')} type="text" className="w-full border-slate-300 rounded-lg text-sm focus:ring-green-500 focus:border-green-500" placeholder="Optional" />
+              </div>
+              <button type="submit" className="flex items-center justify-center gap-2 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors text-sm font-medium">
+                <Plus className="w-4 h-4" /> Add Stock
+              </button>
+            </form>
+          </CardContent>
+        </Card>
       )}
 
       {/* Inventory Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="min-w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Product
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Quantity
-              </th>
-              {user?.role === 'OWNER' && (
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Purchase Price
-                </th>
-              )}
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Selling Price
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {inventory.map((item) => (
-              <tr key={item.id}>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {item.product?.name || `ID: ${item.productId}`}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap font-bold">
-                  {item.quantity}
-                </td>
-                {user?.role === 'OWNER' && (
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-500">
-                    ${item.purchase_price}
-                  </td>
-                )}
-                <td className="px-6 py-4 whitespace-nowrap text-green-600 font-bold">
-                  $
-                  {item.selling_price ||
-                    item.product?.selling_price ||
-                    '-'}
-                </td>
-              </tr>
-            ))}
-            {inventory.length === 0 && (
+      <Card>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm text-slate-600">
+            <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase font-semibold text-slate-500">
               <tr>
-                <td colSpan={4} className="p-4 text-center text-gray-500">
-                  No inventory found.
-                </td>
+                <th className="px-6 py-4">Product Name</th>
+                <th className="px-6 py-4 text-center">Stock Level</th>
+                {user?.role === 'OWNER' && <th className="px-6 py-4 text-right">Purchase Cost</th>}
+                <th className="px-6 py-4 text-right">Selling Price</th>
               </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {inventory.map((item) => (
+                <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                  <td className="px-6 py-4 font-medium text-slate-900 flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-bold">
+                      {item.product?.name?.charAt(0) || '#'}
+                    </div>
+                    {item.product?.name || `Product #${item.productId}`}
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${Number(item.quantity) > 20 ? 'bg-slate-100 text-slate-600' : 'bg-red-100 text-red-600'}`}>
+                      {Number(item.quantity)} units
+                    </span>
+                  </td>
+                  {user?.role === 'OWNER' && (
+                    <td className="px-6 py-4 text-right text-slate-500">
+                      {/* FIX: Convert to Number() before toFixed() */}
+                      ${Number(item.purchase_price || 0).toFixed(2)}
+                    </td>
+                  )}
+                  <td className="px-6 py-4 text-right font-bold text-slate-800">
+                    {/* FIX: Convert to Number() before toFixed() */}
+                    ${Number(item.selling_price || item.product?.selling_price || 0).toFixed(2)}
+                  </td>
+                </tr>
+              ))}
+              {inventory.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-6 py-12 text-center text-slate-400">
+                    <Package className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                    <p>No inventory items found.</p>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
     </div>
   );
 }
