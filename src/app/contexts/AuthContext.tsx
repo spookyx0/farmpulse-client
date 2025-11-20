@@ -8,10 +8,8 @@ import {
   ReactNode,
   useCallback,
 } from 'react';
-import Cookies from 'js-cookie';
 import { useRouter } from 'next/navigation';
 
-// 1. Define Types
 interface User {
   id: number;
   username: string;
@@ -24,61 +22,92 @@ interface AuthContextType {
   login: (token: string) => void;
   logout: () => void;
   isAuthenticated: boolean;
-  isLoading: boolean; // We export this so Layout can wait
+  isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true); // Start true to prevent hydration mismatch
+  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
+  // Helper to parse token safely
+  const getUserFromToken = (token: string): User | null => {
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const payload = JSON.parse(window.atob(base64));
+      
+      if (payload.exp * 1000 > Date.now()) {
+        return {
+          id: payload.sub,
+          username: payload.username,
+          role: payload.role,
+          branchId: payload.branchId,
+        };
+      }
+      return null;
+    } catch (e) {
+      console.error("Token parse error:", e);
+      return null;
+    }
+  };
+
   const logout = useCallback(() => {
-    Cookies.remove('token');
+    console.log("Logging out...");
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('token');
+    }
     setUser(null);
     router.push('/login');
   }, [router]);
 
-  // Check token purely on the client side to avoid Hydration Mismatch
+  // Check token on mount
   useEffect(() => {
-    const checkAuth = () => {
-      const token = Cookies.get('token');
+    const initAuth = () => {
+      if (typeof window === 'undefined') return;
+
+      const token = sessionStorage.getItem('token');
       if (token) {
-        try {
-          const payload = JSON.parse(atob(token.split('.')[1]));
-          // Check expiry
-          if (payload.exp * 1000 > Date.now()) {
-            setUser({
-              id: payload.sub,
-              username: payload.username,
-              role: payload.role,
-              branchId: payload.branchId,
-            });
-          } else {
-            logout();
-          }
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        } catch (error) {
-          logout();
+        const userData = getUserFromToken(token);
+        if (userData) {
+          console.log("Restored user from session:", userData.username);
+          setUser(userData);
+        } else {
+          console.warn("Token expired or invalid during init");
+          sessionStorage.removeItem('token');
         }
+      } else {
+        console.log("No token found in session storage");
       }
-      setIsLoading(false); // Loading finished (whether found or not)
+      setIsLoading(false);
     };
 
-    checkAuth();
-  }, [logout]);
+    initAuth();
+  }, []); // Run once on mount
 
   const login = (token: string) => {
-    Cookies.set('token', token, { expires: 1 });
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    setUser({
-      id: payload.sub,
-      username: payload.username,
-      role: payload.role,
-      branchId: payload.branchId,
-    });
-    router.push('/dashboard');
+    if (typeof window !== 'undefined') {
+      console.log("Login called. Saving token...");
+      sessionStorage.setItem('token', token);
+      
+      // Verify it was saved
+      const savedToken = sessionStorage.getItem('token');
+      if (!savedToken) {
+        alert("Error: Browser failed to save session data. Check browser privacy settings.");
+        return;
+      }
+
+      const userData = getUserFromToken(token);
+      if (userData) {
+        setUser(userData);
+        console.log("User set. Redirecting to dashboard...");
+        router.push('/dashboard');
+      } else {
+        alert("Login failed: Invalid token received from server.");
+      }
+    }
   };
 
   return (
