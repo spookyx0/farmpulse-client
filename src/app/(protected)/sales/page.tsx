@@ -177,7 +177,7 @@ export default function SalesPage() {
                     </div>
 
                     <div className="flex items-center text-sm text-slate-500 w-full md:w-32 justify-end md:justify-start">
-                       {selectedInv ? `$${selectedInv.selling_price || selectedInv.product?.selling_price || 0} / unit` : '-'}
+                       {selectedInv ? `₱${selectedInv.selling_price || selectedInv.product?.selling_price || 0} / unit` : '-'}
                     </div>
 
                     <button
@@ -207,7 +207,7 @@ export default function SalesPage() {
                 <span className="text-sm">Estimated Total</span>
               </div>
               <div className="text-2xl font-bold text-slate-800">
-                <span className="text-green-600">$</span>{calculateEstimatedTotal().toFixed(2)}
+                <span className="text-green-600">₱</span>{calculateEstimatedTotal().toFixed(2)}
               </div>
             </div>
 
@@ -256,7 +256,7 @@ export default function SalesPage() {
                     </ul>
                   </td>
                   <td className="px-6 py-4 text-right font-bold text-green-600">
-                    ${Number(sale.total_amount).toFixed(2)}
+                    ₱{Number(sale.total_amount).toFixed(2)}
                   </td>
                 </tr>
               ))}

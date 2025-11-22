@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import { useAuth } from '../../contexts/AuthContext';
@@ -60,7 +61,6 @@ export default function InventoryPage() {
       reset();
       setRefresh(!refresh); // Trigger re-fetch
       showToast('Stock updated successfully', 'success'); // <-- Toast Success
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       showToast('Failed to update stock. Check Product ID.', 'error'); // <-- Toast Error
     }
@@ -193,12 +193,12 @@ export default function InventoryPage() {
 
                   {user?.role === 'OWNER' && (
                     <td className="px-6 py-4 text-right text-slate-500">
-                      ${Number(item.purchase_price || 0).toFixed(2)}
+                      ₱{Number(item.purchase_price || 0).toFixed(2)}
                     </td>
                   )}
 
                   <td className="px-6 py-4 text-right font-bold text-slate-800">
-                    ${Number(item.selling_price || item.product?.selling_price || 0).toFixed(2)}
+                    ₱{Number(item.selling_price || item.product?.selling_price || 0).toFixed(2)}
                   </td>
                 </tr>
               ))}

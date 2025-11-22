@@ -133,7 +133,7 @@ export default function ExpensesPage() {
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Amount</label>
               <div className="relative">
-                <span className="absolute left-3 top-2 text-slate-500">$</span>
+                <span className="absolute left-3 top-2 text-slate-500">₱</span>
                 <input 
                   type="number" 
                   step="0.01" 
@@ -206,7 +206,7 @@ export default function ExpensesPage() {
                   </td>
                   <td className="px-6 py-4">{exp.description || '-'}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-right font-bold text-red-600">
-                    -${Number(exp.amount).toFixed(2)}
+                    -₱{Number(exp.amount).toFixed(2)}
                   </td>
                 </tr>
               ))}

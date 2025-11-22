@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
@@ -13,7 +12,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
   PieChart, 
   Pie, 
@@ -29,7 +27,6 @@ import {
   Activity,
   Snowflake,
   Egg,
-  AlertCircle
 } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '../../components/ui/Card';
 
@@ -76,8 +73,6 @@ interface LCSummary {
   salesReport: { totalSales: number; costOfSales: number; netSales: number };
 }
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
-
 export default function DashboardPage() {
   const { user, logout } = useAuth();
   const socket = useSocket();
@@ -122,10 +117,8 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!socket || !user) return;
     
-    // 1. Refresh data when a sale happens or delivery updates
     const handleUpdate = () => loadData();
     
-    // 2. Special handler for new sales to update the feed instantly
     const handleNewSale = (saleData: SaleUpdate) => {
         if (user.role === 'OWNER' || (user.role === 'STAFF' && user.branchId === Number(saleData.branch))) {
              setRecentSales((prev) => [saleData, ...prev].slice(0, 10));
@@ -135,12 +128,12 @@ export default function DashboardPage() {
 
     socket.on('newSale', handleNewSale); 
     socket.on('deliveryUpdated', handleUpdate);
-    socket.on('newDelivery', handleUpdate); // <--- LISTEN FOR NEW DELIVERY
+    socket.on('newDelivery', handleUpdate); // Updates Active/Pending deliveries count
     
     return () => { 
         socket.off('newSale', handleNewSale); 
         socket.off('deliveryUpdated', handleUpdate);
-        socket.off('newDelivery', handleUpdate); // <--- CLEANUP
+        socket.off('newDelivery', handleUpdate);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [socket, user]);
@@ -168,9 +161,9 @@ export default function DashboardPage() {
 
         {/* 5-Column KPI Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          <KPICard title="Total Revenue" value={`$${ownerSummary?.totalSales.toFixed(2) || '0'}`} icon={<TrendingUp className="w-5 h-5" />} color="blue" />
-          <KPICard title="Total Expenses" value={`$${ownerSummary?.totalExpenses.toFixed(2) || '0'}`} icon={<TrendingDown className="w-5 h-5" />} color="red" />
-          <KPICard title="Net Profit" value={`$${ownerSummary?.netProfit.toFixed(2) || '0'}`} icon={<DollarSign className="w-5 h-5" />} color={ownerSummary?.netProfit && ownerSummary.netProfit >= 0 ? 'green' : 'red'} />
+          <KPICard title="Total Revenue" value={`₱${ownerSummary?.totalSales.toFixed(2) || '0'}`} icon={<TrendingUp className="w-5 h-5" />} color="blue" />
+          <KPICard title="Total Expenses" value={`₱${ownerSummary?.totalExpenses.toFixed(2) || '0'}`} icon={<TrendingDown className="w-5 h-5" />} color="red" />
+          <KPICard title="Net Profit" value={`₱${ownerSummary?.netProfit.toFixed(2) || '0'}`} icon={<DollarSign className="w-5 h-5" />} color={ownerSummary?.netProfit && ownerSummary.netProfit >= 0 ? 'green' : 'red'} />
           <KPICard title="Inventory Items" value={ownerSummary?.totalInventoryItems || 0} icon={<Package className="w-5 h-5" />} color="amber" />
           <KPICard title="Active Deliveries" value={ownerSummary?.pendingDeliveries || 0} icon={<Truck className="w-5 h-5" />} color="purple" />
         </div>
@@ -184,7 +177,7 @@ export default function DashboardPage() {
                 <BarChart data={chartData} barSize={80}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} dy={10} />
-                  <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} tickFormatter={(value) => `$${value}`} />
+                  <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} tickFormatter={(value) => `₱${value}`} />
                   <Tooltip cursor={{fill: '#f8fafc'}} contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}} />
                   <Bar dataKey="Sales" fill="#4f46e5" radius={[8, 8, 0, 0]} />
                 </BarChart>
@@ -211,7 +204,7 @@ export default function DashboardPage() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <span className="block font-mono font-bold text-green-600 text-sm">+${Number(sale.total_amount).toFixed(2)}</span>
+                      <span className="block font-mono font-bold text-green-600 text-sm">+₱{Number(sale.total_amount).toFixed(2)}</span>
                       <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">SALE</span>
                     </div>
                   </div>
@@ -231,6 +224,7 @@ export default function DashboardPage() {
 
   // --- RENDER: STAFF ---
   if (user?.role === 'STAFF') {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const staffChartData = staffSummary ? [
       { name: 'Expenses', Amount: staffSummary.dailyExpenses },
       { name: 'Profit', Amount: staffSummary.dailyProfit },
@@ -251,9 +245,9 @@ export default function DashboardPage() {
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <KPICard title="Today's Sales" value={`$${staffSummary?.dailySales.toFixed(2)}`} icon={<DollarSign className="w-5 h-5" />} color="green" />
-          <KPICard title="Today's Expenses" value={`$${staffSummary?.dailyExpenses.toFixed(2)}`} icon={<TrendingDown className="w-5 h-5" />} color="red" />
-          <KPICard title="Today's Profit" value={`$${staffSummary?.dailyProfit.toFixed(2)}`} icon={<TrendingUp className="w-5 h-5" />} color="blue" />
+          <KPICard title="Today's Sales" value={`₱${staffSummary?.dailySales.toFixed(2)}`} icon={<DollarSign className="w-5 h-5" />} color="green" />
+          <KPICard title="Today's Expenses" value={`₱${staffSummary?.dailyExpenses.toFixed(2)}`} icon={<TrendingDown className="w-5 h-5" />} color="red" />
+          <KPICard title="Today's Profit" value={`₱${staffSummary?.dailyProfit.toFixed(2)}`} icon={<TrendingUp className="w-5 h-5" />} color="blue" />
           <KPICard title="Stock Count" value={staffSummary?.inventoryCount || 0} icon={<Package className="w-5 h-5" />} color="amber" />
         </div>
 
@@ -274,7 +268,7 @@ export default function DashboardPage() {
                           <p className="text-xs text-slate-500">{new Date(sale.created_at).toLocaleTimeString()}</p>
                         </div>
                       </div>
-                      <span className="font-bold text-slate-800">${Number(sale.total_amount).toFixed(2)}</span>
+                      <span className="font-bold text-slate-800">₱{Number(sale.total_amount).toFixed(2)}</span>
                     </div>
                   ))
                 ) : (
@@ -362,7 +356,7 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
            <KPICard title="Total Heads" value={lcSummary.inventoryReport.heads} icon={<Package className="w-5 h-5"/>} color="amber" />
            <KPICard title="Total Distributed (Heads)" value={lcSummary.distributionReport.heads} icon={<Truck className="w-5 h-5"/>} color="blue" />
-           <KPICard title="Net Sales" value={`$${lcSummary.salesReport.netSales.toFixed(2)}`} icon={<DollarSign className="w-5 h-5"/>} color="green" />
+           <KPICard title="Net Sales" value={`₱${lcSummary.salesReport.netSales.toFixed(2)}`} icon={<DollarSign className="w-5 h-5"/>} color="green" />
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -376,7 +370,6 @@ export default function DashboardPage() {
                      <Cell fill="#ef4444" />
                    </Pie>
                    <Tooltip />
-                   <Legend />
                  </PieChart>
                </ResponsiveContainer>
              </div>
@@ -415,6 +408,7 @@ function KPICard({ title, value, icon, color }: { title: string, value: string |
       </div>
       <h3 className="text-2xl font-bold text-slate-800">{value}</h3>
     </div>
+
   );
 }
 
@@ -423,7 +417,7 @@ function KPIMini({ label, value, color }: { label: string, value: number, color:
   return (
     <div className="p-3 bg-slate-50 rounded-lg">
       <p className="text-xs text-slate-500 mb-1">{label}</p>
-      <p className={`text-lg font-bold ${colors[color]}`}>${value.toFixed(2)}</p>
+      <p className={`text-lg font-bold ${colors[color]}`}>₱{value.toFixed(2)}</p>
     </div>
   );
 }
