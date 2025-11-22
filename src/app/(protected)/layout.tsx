@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect, ReactNode } from 'react';
 import Sidebar from '../components/Sidebar';
+import Header from '../components/Header'; // <-- Import Header
 
 export default function ProtectedLayout({
   children,
@@ -14,31 +15,46 @@ export default function ProtectedLayout({
   const router = useRouter();
 
   useEffect(() => {
-    // Only redirect if we are DONE loading and NOT authenticated
     if (!isLoading && !isAuthenticated) {
       router.push('/login');
     }
   }, [isLoading, isAuthenticated, router]);
 
-  // Show loading spinner while checking cookie
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg font-semibold text-gray-600">Loading FarmPulse...</div>
+      <div className="flex items-center justify-center min-h-screen bg-slate-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-green-200 border-t-green-600 rounded-full animate-spin"></div>
+          <div className="text-sm font-semibold text-slate-500 animate-pulse">Loading FarmPulse...</div>
+        </div>
       </div>
     );
   }
 
-  // If not authenticated (and redirect hasn't happened yet), don't show content
   if (!isAuthenticated) {
     return null;
   }
 
-  // Render the app shell
   return (
-    <div className="flex min-h-screen">
-      <Sidebar />
-      <main className="flex-1 p-8 bg-gray-100">{children}</main>
+    <div className="flex h-screen bg-slate-50 overflow-hidden">
+      {/* 1. Sidebar (Fixed Left) */}
+      <aside className="hidden md:block w-64 flex-shrink-0">
+        <Sidebar />
+      </aside>
+
+      {/* 2. Main Content Wrapper (Right Side) */}
+      <div className="flex-1 flex flex-col min-w-0">
+        
+        {/* 2a. Header (Fixed Top) */}
+        <Header />
+
+        {/* 2b. Scrollable Page Content */}
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 scroll-smooth">
+          <div className="max-w-7xl mx-auto w-full">
+            {children}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

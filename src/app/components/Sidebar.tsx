@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 
 type NavLink = { href: string; label: string; icon?: string };
 
+// Define links for each role with Icons (using emojis for simplicity, or you can use Lucide icons if imported)
 const ownerLinks: NavLink[] = [
   { href: '/dashboard', label: 'Dashboard', icon: '📊' },
   { href: '/branches', label: 'Branches', icon: '🏢' },
@@ -42,33 +43,25 @@ const roleLinks = {
 };
 
 export default function Sidebar() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const pathname = usePathname();
 
   const links = user ? roleLinks[user.role as keyof typeof roleLinks] : [];
 
   return (
-    <nav className="w-64 h-screen bg-slate-900 text-slate-300 flex flex-col shadow-2xl z-10">
-      {/* Header */}
-      <div className="p-6 border-b border-slate-800">
-        <h2 className="text-2xl font-bold text-white tracking-wide flex items-center gap-2">
-          <span className="text-green-500 text-3xl">❖</span> FarmPulse
+    <nav className="w-full h-full bg-slate-900 text-slate-300 flex flex-col shadow-xl border-r border-slate-800">
+      {/* Minimal Logo Header */}
+      <div className="h-16 flex items-center px-6 border-b border-slate-800 bg-slate-950">
+        <h2 className="text-xl font-bold text-white tracking-wide flex items-center gap-2">
+          <span className="text-green-500 text-2xl">❖</span> FarmPulse
         </h2>
-        <div className="mt-4 bg-slate-800 rounded-lg p-3">
-          <p className="text-xs text-slate-400 uppercase font-semibold tracking-wider">
-            Logged in as
-          </p>
-          <p className="text-white font-medium truncate" title={user?.username}>
-            {user?.username}
-          </p>
-          <span className="text-[10px] bg-green-600 text-white px-1.5 py-0.5 rounded mt-1 inline-block">
-            {user?.role.replace('_', ' ')}
-          </span>
-        </div>
       </div>
 
-      {/* Navigation */}
-      <div className="flex-1 overflow-y-auto py-4">
+      {/* Navigation Links */}
+      <div className="flex-1 overflow-y-auto py-6">
+        <p className="px-6 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">
+          Main Menu
+        </p>
         <ul className="space-y-1 px-3">
           {links.map((link: NavLink) => {
             const isActive = pathname === link.href;
@@ -76,14 +69,16 @@ export default function Sidebar() {
               <li key={link.href}>
                 <Link
                   href={link.href}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group ${
                     isActive
-                      ? 'bg-green-600 text-white shadow-lg translate-x-1'
+                      ? 'bg-green-600 text-white shadow-md translate-x-1'
                       : 'hover:bg-slate-800 hover:text-white'
                   }`}
                 >
-                  <span className="text-lg">{link.icon}</span>
-                  <span className="font-medium">{link.label}</span>
+                  <span className={`text-lg transition-transform group-hover:scale-110 ${isActive ? '' : 'opacity-70 group-hover:opacity-100'}`}>
+                    {link.icon}
+                  </span>
+                  <span className="font-medium text-sm">{link.label}</span>
                 </Link>
               </li>
             );
@@ -91,14 +86,10 @@ export default function Sidebar() {
         </ul>
       </div>
 
-      {/* Footer */}
-      <div className="p-4 border-t border-slate-800">
-        <button
-          onClick={logout}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-red-200 bg-red-900/30 hover:bg-red-900/50 border border-red-900/50 rounded-lg transition-colors"
-        >
-          <span>🚪</span> Logout
-        </button>
+      {/* Minimal Footer (Version Info) */}
+      <div className="p-4 border-t border-slate-800 text-center text-xs text-slate-600">
+        <p>FarmPulse System v1.0</p>
+        <p className="mt-1">© 2025</p>
       </div>
     </nav>
   );
