@@ -1,10 +1,13 @@
 "use client";
 
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext'; // <-- Import Toast
 import api from '../../services/api';
 import { useEffect, useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { AxiosError } from 'axios';
+import { Card, CardContent, CardHeader } from '../../components/ui/Card'; // <-- Import Card
+import { ShoppingCart, Plus, Trash2, Tag, Calculator } from 'lucide-react'; // <-- Import Icons
 
 // --- Types ---
 interface Product {
@@ -48,6 +51,7 @@ interface SaleFormData {
 
 export default function SalesPage() {
   const { user } = useAuth();
+  const { showToast } = useToast(); // <-- Use Hook
   const [sales, setSales] = useState<Sale[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -64,18 +68,14 @@ export default function SalesPage() {
     name: 'items',
   });
 
-  // Watch form values to calculate estimated total UI
   const formItems = watch('items');
 
-  // Fetch Data (Inventory & Sales History)
+  // Fetch Data
   const fetchData = async () => {
     if (!user) return;
     try {
-      // 1. Get Inventory (to populate dropdowns)
       const invRes = await api.get<InventoryItem[]>('/inventory/branch');
       setInventory(invRes.data);
-
-      // 2. Get Sales History
       const salesRes = await api.get<Sale[]>('/sales');
       setSales(salesRes.data);
     } catch (err) {
@@ -92,7 +92,6 @@ export default function SalesPage() {
   const onSubmit = async (data: SaleFormData) => {
     setIsLoading(true);
     try {
-      // Format data for API
       const formattedData = {
         items: data.items.map((item) => ({
           productId: Number(item.productId),
@@ -102,30 +101,24 @@ export default function SalesPage() {
 
       await api.post('/sales', formattedData);
       
-      alert('Sale recorded successfully!');
-      reset(); // Clear form
-      fetchData(); // Refresh list and inventory
+      showToast('Sale recorded successfully!', 'success'); // <-- Toast Success
+      reset();
+      fetchData();
     } catch (err) {
       console.error(err);
       let msg = 'Failed to record sale.';
-      
-      // Fix for "Unexpected any" error by type checking
       if (err instanceof AxiosError && err.response?.data?.message) {
         msg = err.response.data.message;
       }
-      
-      alert(`Error: ${msg}`);
+      showToast(msg, 'error'); // <-- Toast Error
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Helper to calculate estimated total for the UI
   const calculateEstimatedTotal = () => {
     return formItems.reduce((total, item) => {
       const invItem = inventory.find((i) => i.productId === Number(item.productId));
-      // Note: Price comes from Owner Inventory setting, usually passed down to branch or product
-      // For MVP, we use the selling_price found in the inventory object
       const price = invItem?.selling_price || invItem?.product?.selling_price || 0;
       return total + (Number(item.quantity) || 0) * price;
     }, 0);
@@ -136,126 +129,140 @@ export default function SalesPage() {
   }
 
   return (
-    <div className="space-y-8">
-      <h1 className="text-3xl font-bold">Sales Register</h1>
+    <div className="space-y-8 max-w-5xl mx-auto">
+      <h1 className="text-3xl font-bold text-slate-800 flex items-center gap-3">
+        <ShoppingCart className="w-8 h-8 text-green-600" />
+        Sales Register
+      </h1>
 
       {/* --- New Sale Form --- */}
-      <div className="bg-white p-6 rounded-lg shadow-md border-t-4 border-green-600">
-        <h2 className="text-xl font-semibold mb-4">Record New Sale</h2>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-3">
-            <label className="block font-medium text-gray-700">Items Sold:</label>
-            
-            {fields.map((field, index) => {
-              // Find selected inventory item to show available stock/price
-              const currentProductId = Number(formItems[index]?.productId);
-              const selectedInv = inventory.find(i => i.productId === currentProductId);
+      <Card className="border-t-4 border-t-green-600">
+        <CardHeader title="Record New Transaction" subtitle="Add items to cart and complete sale." />
+        <CardContent>
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            <div className="space-y-3 bg-slate-50 p-4 rounded-lg border border-slate-200">
+              <label className="block text-sm font-medium text-slate-700 mb-2">Items in Cart</label>
+              
+              {fields.map((field, index) => {
+                const currentProductId = Number(formItems[index]?.productId);
+                const selectedInv = inventory.find(i => i.productId === currentProductId);
 
-              return (
-                <div key={field.id} className="flex flex-col md:flex-row gap-3 p-3 bg-gray-50 rounded border border-gray-200">
-                  <div className="flex-1">
-                    <select
-                      {...register(`items.${index}.productId` as const, { required: true })}
-                      className="w-full border p-2 rounded"
+                return (
+                  <div key={field.id} className="flex flex-col md:flex-row gap-3 items-start md:items-center bg-white p-3 rounded border border-slate-200 shadow-sm">
+                    <div className="flex-1 w-full">
+                      <div className="relative">
+                        <Tag className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                        <select
+                          {...register(`items.${index}.productId` as const, { required: true })}
+                          className="w-full pl-10 p-2 border-slate-300 rounded-md text-sm focus:ring-green-500 focus:border-green-500"
+                        >
+                          <option value="">Select Product...</option>
+                          {inventory.map((inv) => (
+                            <option key={inv.id} value={inv.productId}>
+                              {inv.product?.name} (Stock: {inv.quantity})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="w-full md:w-32">
+                      <input
+                        type="number"
+                        step="0.01"
+                        placeholder="Qty"
+                        {...register(`items.${index}.quantity` as const, { required: true, min: 0.01 })}
+                        className="w-full p-2 border-slate-300 rounded-md text-sm focus:ring-green-500 focus:border-green-500"
+                      />
+                    </div>
+
+                    <div className="flex items-center text-sm text-slate-500 w-full md:w-32 justify-end md:justify-start">
+                       {selectedInv ? `$${selectedInv.selling_price || selectedInv.product?.selling_price || 0} / unit` : '-'}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => remove(index)}
+                      className="text-slate-400 hover:text-red-600 transition-colors p-1"
+                      title="Remove Item"
                     >
-                      <option value="">Select Product...</option>
-                      {inventory.map((inv) => (
-                        <option key={inv.id} value={inv.productId}>
-                          {inv.product?.name} (Stock: {inv.quantity})
-                        </option>
-                      ))}
-                    </select>
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
-
-                  <div className="w-full md:w-32">
-                    <input
-                      type="number"
-                      step="0.01"
-                      placeholder="Qty"
-                      {...register(`items.${index}.quantity` as const, { required: true, min: 0.01 })}
-                      className="w-full border p-2 rounded"
-                    />
-                  </div>
-
-                  <div className="flex items-center text-sm text-gray-500 w-full md:w-32">
-                     {selectedInv ? `$${selectedInv.selling_price || selectedInv.product?.selling_price || 0} / unit` : '-'}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => remove(index)}
-                    className="text-red-500 font-bold px-2 hover:text-red-700"
-                    title="Remove Item"
-                  >
-                    ✕
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="flex justify-between items-center pt-2">
-            <button
-              type="button"
-              onClick={() => append({ productId: '', quantity: '' })}
-              className="text-blue-600 hover:underline text-sm font-medium"
-            >
-              + Add Another Item
-            </button>
-            <div className="text-xl font-bold">
-              Total: <span className="text-green-600">${calculateEstimatedTotal().toFixed(2)}</span>
+                );
+              })}
+              
+              <button
+                type="button"
+                onClick={() => append({ productId: '', quantity: '' })}
+                className="text-sm text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1 mt-2"
+              >
+                <Plus className="w-4 h-4" /> Add Another Item
+              </button>
             </div>
-          </div>
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            className={`w-full py-3 rounded text-white font-bold text-lg ${
-              isLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'
-            }`}
-          >
-            {isLoading ? 'Processing...' : 'Complete Sale'}
-          </button>
-        </form>
-      </div>
+            <div className="flex justify-between items-center pt-2 border-t border-slate-100">
+              <div className="flex items-center gap-2 text-slate-600">
+                <Calculator className="w-5 h-5" />
+                <span className="text-sm">Estimated Total</span>
+              </div>
+              <div className="text-2xl font-bold text-slate-800">
+                <span className="text-green-600">$</span>{calculateEstimatedTotal().toFixed(2)}
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className={`w-full py-3 rounded-lg text-white font-semibold text-lg shadow-md transition-all ${
+                isLoading ? 'bg-slate-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 hover:shadow-lg'
+              }`}
+            >
+              {isLoading ? 'Processing Transaction...' : 'Complete Sale'}
+            </button>
+          </form>
+        </CardContent>
+      </Card>
 
       {/* --- Sales History --- */}
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h2 className="text-xl font-semibold mb-4">Recent Sales History</h2>
+      <Card>
+        <CardHeader title="Recent Sales History" subtitle="Transactions recorded by this branch." />
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full text-left text-sm text-slate-600">
+            <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase font-semibold text-slate-500">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Items</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total</th>
+                <th className="px-6 py-3">ID</th>
+                <th className="px-6 py-3">Date</th>
+                <th className="px-6 py-3">Items Sold</th>
+                <th className="px-6 py-3 text-right">Total Amount</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="divide-y divide-slate-100">
               {sales.map((sale) => (
-                <tr key={sale.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">#{sale.id}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {new Date(sale.created_at).toLocaleDateString()} {new Date(sale.created_at).toLocaleTimeString()}
+                <tr key={sale.id} className="hover:bg-slate-50">
+                  <td className="px-6 py-4 font-mono text-xs text-slate-400">#{sale.id}</td>
+                  <td className="px-6 py-4">
+                    <div className="font-medium text-slate-900">{new Date(sale.created_at).toLocaleDateString()}</div>
+                    <div className="text-xs text-slate-400">{new Date(sale.created_at).toLocaleTimeString()}</div>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    <ul className="list-disc list-inside">
+                  <td className="px-6 py-4">
+                    <ul className="list-disc list-inside text-xs space-y-1">
                       {sale.items.map((item) => (
                         <li key={item.id}>
-                          {item.product?.name} x {item.quantity}
+                          <span className="font-medium text-slate-700">{item.product?.name}</span> 
+                          <span className="text-slate-400 ml-1">x{item.quantity}</span>
                         </li>
                       ))}
                     </ul>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-bold text-green-600">
-                    ${sale.total_amount}
+                  <td className="px-6 py-4 text-right font-bold text-green-600">
+                    ${Number(sale.total_amount).toFixed(2)}
                   </td>
                 </tr>
               ))}
               {sales.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-6 py-4 text-center text-gray-500">
+                  <td colSpan={4} className="px-6 py-8 text-center text-slate-400">
                     No sales recorded yet.
                   </td>
                 </tr>
@@ -263,7 +270,7 @@ export default function SalesPage() {
             </tbody>
           </table>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

@@ -1,10 +1,13 @@
 "use client";
 
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext'; // <-- Import Toast
 import api from '../../services/api';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { AxiosError } from 'axios';
+import { Card, CardContent, CardHeader } from '../../components/ui/Card'; // <-- Import Card
+import { DollarSign, Calendar, Tag, FileText } from 'lucide-react'; // <-- Import Icons
 
 // --- Types ---
 interface Branch {
@@ -29,7 +32,6 @@ interface ExpenseFormData {
   date: string;
 }
 
-// Static Branches (Same as Deliveries Page)
 const BRANCHES_DATA: Branch[] = [
   { id: 1, name: 'San Roque (Main)' },
   { id: 2, name: 'Rawis' },
@@ -41,19 +43,19 @@ const BRANCHES_DATA: Branch[] = [
 
 export default function ExpensesPage() {
   const { user } = useAuth();
+  const { showToast } = useToast(); // <-- Use Hook
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   const { register, handleSubmit, watch, reset } = useForm<ExpenseFormData>({
     defaultValues: {
       category: 'BRANCH',
-      date: new Date().toISOString().split('T')[0], // Today's date
+      date: new Date().toISOString().split('T')[0], 
     },
   });
 
   const selectedCategory = watch('category');
 
-  // Fetch Expenses
   const fetchExpenses = async () => {
     if (!user) return;
     const endpoint = user.role === 'OWNER' ? '/expenses/owner' : '/expenses/branch';
@@ -78,123 +80,143 @@ export default function ExpensesPage() {
         amount: Number(data.amount),
         branchId: data.branchId ? Number(data.branchId) : undefined,
       });
-      alert('Expense added!');
+      showToast('Expense recorded successfully', 'success'); // <-- Toast Success
       reset({ date: new Date().toISOString().split('T')[0], category: 'BRANCH' });
       fetchExpenses();
     } catch (err) {
       const msg = err instanceof AxiosError ? err.response?.data?.message : 'Error';
-      alert(`Failed: ${msg}`);
+      showToast(`Failed to add expense: ${msg}`, 'error'); // <-- Toast Error
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="space-y-8">
-      <h1 className="text-3xl font-bold">Expenses Management</h1>
+    <div className="space-y-8 max-w-5xl mx-auto">
+      <h1 className="text-3xl font-bold text-slate-800 flex items-center gap-3">
+        <DollarSign className="w-8 h-8 text-red-600" />
+        Expenses Management
+      </h1>
 
       {/* Add Expense Form */}
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h2 className="text-xl font-semibold mb-4">Record Expense</h2>
-        <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          
-          {/* Owner can choose category */}
-          {user?.role === 'OWNER' && (
+      <Card className="border-l-4 border-l-red-500">
+        <CardHeader title="Record New Expense" subtitle="Log daily operational costs." />
+        <CardContent>
+          <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            {user?.role === 'OWNER' && (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Category</label>
+                <div className="relative">
+                  <Tag className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                  <select {...register('category')} className="w-full pl-9 p-2 border-slate-300 rounded-lg focus:ring-red-500 focus:border-red-500">
+                    <option value="BRANCH">Branch Expense</option>
+                    <option value="FREEZER_VAN">Freezer Van</option>
+                    <option value="LIVE_CHICKEN">Live Chicken</option>
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {user?.role === 'OWNER' && selectedCategory === 'BRANCH' && (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Branch</label>
+                <select {...register('branchId')} className="w-full p-2 border-slate-300 rounded-lg focus:ring-red-500 focus:border-red-500">
+                  <option value="">Select Branch...</option>
+                  {BRANCHES_DATA.map((b) => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <div>
-              <label className="block text-sm font-medium text-gray-700">Category</label>
-              <select {...register('category')} className="w-full border p-2 rounded mt-1">
-                <option value="BRANCH">Branch Expense</option>
-                <option value="FREEZER_VAN">Freezer Van</option>
-                <option value="LIVE_CHICKEN">Live Chicken</option>
-              </select>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Amount</label>
+              <div className="relative">
+                <span className="absolute left-3 top-2 text-slate-500">$</span>
+                <input 
+                  type="number" 
+                  step="0.01" 
+                  {...register('amount', { required: true })} 
+                  className="w-full pl-8 p-2 border-slate-300 rounded-lg focus:ring-red-500 focus:border-red-500" 
+                  placeholder="0.00"
+                />
+              </div>
             </div>
-          )}
 
-          {/* Branch Selection (Only for Owner if Category is BRANCH) */}
-          {user?.role === 'OWNER' && selectedCategory === 'BRANCH' && (
             <div>
-              <label className="block text-sm font-medium text-gray-700">Branch</label>
-              <select {...register('branchId')} className="w-full border p-2 rounded mt-1">
-                <option value="">Select Branch...</option>
-                {BRANCHES_DATA.map((b) => (
-                  <option key={b.id} value={b.id}>{b.name}</option>
-                ))}
-              </select>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Date</label>
+              <div className="relative">
+                <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                <input 
+                  type="date" 
+                  {...register('date', { required: true })} 
+                  className="w-full pl-9 p-2 border-slate-300 rounded-lg focus:ring-red-500 focus:border-red-500" 
+                />
+              </div>
             </div>
-          )}
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Amount</label>
-            <input 
-              type="number" 
-              step="0.01" 
-              {...register('amount', { required: true })} 
-              className="w-full border p-2 rounded mt-1" 
-            />
-          </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
+              <div className="relative">
+                <FileText className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                <input 
+                  type="text" 
+                  {...register('description')} 
+                  className="w-full pl-9 p-2 border-slate-300 rounded-lg focus:ring-red-500 focus:border-red-500" 
+                  placeholder="e.g., Electricity Bill, Transport, Maintenance"
+                />
+              </div>
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Date</label>
-            <input 
-              type="date" 
-              {...register('date', { required: true })} 
-              className="w-full border p-2 rounded mt-1" 
-            />
-          </div>
-
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700">Description</label>
-            <input 
-              type="text" 
-              {...register('description')} 
-              className="w-full border p-2 rounded mt-1" 
-              placeholder="e.g., Electricity Bill, Transport"
-            />
-          </div>
-
-          <div className="md:col-span-2">
-            <button 
-              type="submit" 
-              disabled={isLoading}
-              className="w-full bg-red-600 text-white py-2 rounded hover:bg-red-700 disabled:bg-gray-400"
-            >
-              {isLoading ? 'Saving...' : 'Add Expense'}
-            </button>
-          </div>
-        </form>
-      </div>
+            <div className="md:col-span-2">
+              <button 
+                type="submit" 
+                disabled={isLoading}
+                className="w-full bg-red-600 text-white py-2.5 rounded-lg font-medium hover:bg-red-700 shadow-sm transition-colors disabled:bg-slate-400"
+              >
+                {isLoading ? 'Saving...' : 'Record Expense'}
+              </button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
 
       {/* Expenses List */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {expenses.map((exp) => (
-              <tr key={exp.id}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{exp.date}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {exp.category} 
-                  {exp.branch && <span className="text-xs block text-blue-600">{exp.branch.name}</span>}
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-500">{exp.description || '-'}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-bold text-red-600">
-                  ${Number(exp.amount).toFixed(2)}
-                </td>
+      <Card>
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-left text-sm text-slate-600">
+            <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase font-semibold text-slate-500">
+              <tr>
+                <th className="px-6 py-3">Date</th>
+                <th className="px-6 py-3">Category</th>
+                <th className="px-6 py-3">Description</th>
+                <th className="px-6 py-3 text-right">Amount</th>
               </tr>
-            ))}
-            {expenses.length === 0 && (
-              <tr><td colSpan={4} className="p-4 text-center text-gray-500">No expenses recorded.</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {expenses.map((exp) => (
+                <tr key={exp.id} className="hover:bg-slate-50">
+                  <td className="px-6 py-4 whitespace-nowrap">{exp.date}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
+                      {exp.category.replace('_', ' ')}
+                    </span>
+                    {exp.branch && <div className="text-xs text-slate-400 mt-1">{exp.branch.name}</div>}
+                  </td>
+                  <td className="px-6 py-4">{exp.description || '-'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right font-bold text-red-600">
+                    -${Number(exp.amount).toFixed(2)}
+                  </td>
+                </tr>
+              ))}
+              {expenses.length === 0 && (
+                <tr><td colSpan={4} className="p-8 text-center text-slate-400">No expenses recorded.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
     </div>
   );
 }

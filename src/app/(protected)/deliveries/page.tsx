@@ -1,23 +1,22 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
+import { useToast } from '../../contexts/ToastContext'; // <-- Integrated Toast
 import api from '../../services/api';
 import { useEffect, useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { Card, CardContent, CardHeader } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
+import { ConfirmationModal } from '../../components/ui/ConfirmationModal'; // <-- Integrated Modal
 import { Truck, MapPin, CheckCircle, Clock, Plus, Trash2 } from 'lucide-react';
 
-// ... (Keep your existing Interfaces/Types here: Branch, Product, etc.) ...
-// Assuming you kept the interfaces from the previous code block I gave you.
-// If you need them again, let me know, but for brevity I will assume they are there.
-
-// --- INSERT INTERFACES FROM PREVIOUS STEP HERE ---
 interface Branch { id: number; name: string; }
 interface DeliveryItem { productId: number; quantity: number; product?: { name: string } }
 interface Delivery { id: number; branchId: number; branch?: Branch; status: 'PENDING' | 'IN_TRANSIT' | 'DELIVERED'; items: DeliveryItem[]; }
-interface DeliveryFormData { branchId: string; items: { productId: string; quantity: string }[]; }
+interface DeliveryFormItem { productId: string; quantity: string; }
+interface DeliveryFormData { branchId: string; items: DeliveryFormItem[]; }
 
 const BRANCHES_DATA: Branch[] = [
   { id: 1, name: 'San Roque (Main)' },
@@ -31,7 +30,14 @@ const BRANCHES_DATA: Branch[] = [
 export default function DeliveriesPage() {
   const { user } = useAuth();
   const socket = useSocket();
+  const { showToast } = useToast(); // <-- Hook
+  
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
+  
+  // Modal State
+  const [confirmId, setConfirmId] = useState<number | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+
   const branches = user?.role === 'OWNER' ? BRANCHES_DATA : [];
 
   const { register, control, handleSubmit, reset } = useForm<DeliveryFormData>({
@@ -48,6 +54,7 @@ export default function DeliveriesPage() {
   useEffect(() => {
     if (!user) return;
     fetchDeliveries();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   useEffect(() => {
@@ -57,16 +64,14 @@ export default function DeliveriesPage() {
         const exists = prev.find((d) => d.id === updatedDelivery.id);
         return exists ? prev.map((d) => d.id === updatedDelivery.id ? updatedDelivery : d) : [updatedDelivery, ...prev];
       });
+      
+      // Optional: Notify owner when staff receives goods
+      if (user?.role === 'OWNER' && updatedDelivery.status === 'DELIVERED') {
+         showToast(`Delivery #${updatedDelivery.id} received by branch.`, 'success');
+      }
     });
     return () => { socket.off('deliveryUpdated'); };
-  }, [socket]);
-
-  const getErrorMessage = (error: unknown) => {
-    if (typeof error === 'string') return error;
-    if (error instanceof Error) return error.message;
-    const message = (error as { response?: { data?: { message?: unknown } } }).response?.data?.message;
-    return typeof message === 'string' ? message : 'Failed';
-  };
+  }, [socket, showToast, user]);
 
   const onCreateDelivery = async (data: DeliveryFormData) => {
     try {
@@ -76,18 +81,23 @@ export default function DeliveriesPage() {
       });
       reset();
       fetchDeliveries();
-      alert('Delivery dispatched!');
-    } catch (err: unknown) {
-      alert(`Error: ${getErrorMessage(err)}`);
+      showToast('Delivery dispatched successfully!', 'success');
+    } catch (err: any) {
+      showToast(err.response?.data?.message || 'Failed to create delivery', 'error');
     }
   };
 
-  const onReceive = async (id: number) => {
-    if (!confirm('Confirm receipt of goods?')) return;
-    try {
-      await api.patch(`/deliveries/${id}/deliver`);
-    } catch (err: unknown) {
-      alert(getErrorMessage(err));
+  const onConfirmReceive = async () => {
+    if (!confirmId) return;
+    setIsProcessing(true);
+    try { 
+        await api.patch(`/deliveries/${confirmId}/deliver`); 
+        showToast('Goods received and inventory updated!', 'success');
+        setConfirmId(null); // Close modal
+    } catch (err) { 
+        showToast('Failed to update delivery status', 'error');
+    } finally {
+        setIsProcessing(false);
     }
   };
 
@@ -161,7 +171,10 @@ export default function DeliveriesPage() {
               </div>
 
               {user?.role === 'STAFF' && delivery.status !== 'DELIVERED' && (
-                <button onClick={() => onReceive(delivery.id)} className="bg-green-600 hover:bg-green-700 text-white px-6 py-2.5 rounded-lg font-medium shadow-sm transition-colors flex items-center gap-2">
+                <button 
+                    onClick={() => setConfirmId(delivery.id)} // <-- Trigger Modal
+                    className="bg-green-600 hover:bg-green-700 text-white px-6 py-2.5 rounded-lg font-medium shadow-sm transition-colors flex items-center gap-2"
+                >
                   <CheckCircle className="w-4 h-4" /> Receive Goods
                 </button>
               )}
@@ -170,6 +183,18 @@ export default function DeliveriesPage() {
         ))}
         {deliveries.length === 0 && <p className="text-center text-slate-400 py-10">No deliveries on record.</p>}
       </div>
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={!!confirmId}
+        onClose={() => setConfirmId(null)}
+        onConfirm={onConfirmReceive}
+        title="Receive Delivery?"
+        message="Are you sure you want to mark this delivery as received? The items will be added to your branch inventory immediately."
+        confirmText="Yes, Receive Goods"
+        isLoading={isProcessing}
+        variant="primary"
+      />
     </div>
   );
 }
