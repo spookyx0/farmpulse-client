@@ -60,6 +60,7 @@ export default function InventoryPage() {
       reset();
       setRefresh(!refresh); // Trigger re-fetch
       showToast('Stock updated successfully', 'success'); // <-- Toast Success
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       showToast('Failed to update stock. Check Product ID.', 'error'); // <-- Toast Error
     }
