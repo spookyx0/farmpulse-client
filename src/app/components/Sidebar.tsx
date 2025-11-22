@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation';
 
 type NavLink = { href: string; label: string; icon?: string };
 
-// Define links for each role with Icons (using emojis for simplicity, or you can use Lucide icons if imported)
 const ownerLinks: NavLink[] = [
   { href: '/dashboard', label: 'Dashboard', icon: '📊' },
   { href: '/branches', label: 'Branches', icon: '🏢' },
@@ -51,7 +50,7 @@ export default function Sidebar() {
   return (
     <nav className="w-full h-full bg-slate-900 text-slate-300 flex flex-col shadow-xl border-r border-slate-800">
       {/* Minimal Logo Header */}
-      <div className="h-16 flex items-center px-6 border-b border-slate-800 bg-slate-950">
+      <div className="h-16 flex items-center px-6 border-b border-slate-800 bg-slate-450">
         <h2 className="text-xl font-bold text-white tracking-wide flex items-center gap-2">
           <span className="text-green-500 text-2xl">❖</span> FarmPulse
         </h2>
@@ -88,7 +87,7 @@ export default function Sidebar() {
 
       {/* Minimal Footer (Version Info) */}
       <div className="p-4 border-t border-slate-800 text-center text-xs text-slate-600">
-        <p>FarmPulse System v1.0</p>
+        <p>FarmPulse System</p>
         <p className="mt-1">© 2025</p>
       </div>
     </nav>

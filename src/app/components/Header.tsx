@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from '../contexts/AuthContext';
-import { Bell, User, LogOut, Menu } from 'lucide-react';
+import { Bell, User, LogOut } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
 export default function Header() {
@@ -31,7 +31,6 @@ export default function Header() {
       {/* Left Side: Branding or Page Title Context */}
       <div className="flex items-center gap-4">
         <h2 className="text-lg font-semibold text-slate-700 hidden md:block">
-          FarmPulse Management
         </h2>
       </div>
 
