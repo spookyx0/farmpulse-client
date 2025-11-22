@@ -1,39 +1,51 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable react-hooks/incompatible-library */
 "use client";
 
 import { useAuth } from '../../contexts/AuthContext';
-import { useToast } from '../../contexts/ToastContext'; // <-- Integrated Toast
+import { useToast } from '../../contexts/ToastContext';
 import api from '../../services/api';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Card, CardContent, CardHeader } from '../../components/ui/Card';
-import { Package, Plus, RefreshCw, Tag } from 'lucide-react';
+import { Package, Plus, RefreshCw, Tag, Calendar, Layers, User } from 'lucide-react';
 
 // --- Types ---
 interface InventoryItem {
   id: number;
   productId: number;
   quantity: number;
-  // Allow string or number to prevent runtime crashes if DB returns string decimals
   purchase_price?: number | string;
   selling_price?: number | string;
-  product?: { name: string; selling_price?: number | string };
+  product?: { name: string; selling_price?: number | string; category?: string };
 }
 
 interface AddStockFormData {
-  productId: string;
+  date: string;
+  supplier: string;
+  productName: string;
+  category: 'FROZEN_ITEM' | 'CHICKEN_PART';
   quantity: string;
   purchase_price: string;
   selling_price: string;
-  supplier: string;
 }
 
 export default function InventoryPage() {
   const { user } = useAuth();
-  const { showToast } = useToast(); // <-- Use Hook
+  const { showToast } = useToast();
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
-  const { register, handleSubmit, reset } = useForm<AddStockFormData>();
   const [refresh, setRefresh] = useState(false);
+
+  const { register, handleSubmit, watch, reset } = useForm<AddStockFormData>({
+    defaultValues: {
+      date: new Date().toISOString().split('T')[0],
+      category: 'FROZEN_ITEM' // Default
+    }
+  });
+
+  // Watch category to change label dynamically
+  const selectedCategory = watch('category');
+  const quantityLabel = selectedCategory === 'CHICKEN_PART' ? 'Kilos' : 'Quantity';
 
   // Fetch Data
   useEffect(() => {
@@ -52,17 +64,27 @@ export default function InventoryPage() {
   const onAddStock = async (data: AddStockFormData) => {
     try {
       await api.post('/inventory/owner/add', {
-        productId: Number(data.productId),
+        ...data,
+        // Convert strings to numbers for backend
         quantity: Number(data.quantity),
         purchase_price: Number(data.purchase_price),
         selling_price: Number(data.selling_price),
-        supplier: data.supplier,
       });
-      reset();
+      
+      reset({
+        date: new Date().toISOString().split('T')[0],
+        category: 'FROZEN_ITEM',
+        supplier: '',
+        productName: '',
+        quantity: '',
+        purchase_price: '',
+        selling_price: ''
+      });
+      
       setRefresh(!refresh); // Trigger re-fetch
-      showToast('Stock updated successfully', 'success'); // <-- Toast Success
+      showToast('Item added to inventory successfully', 'success');
     } catch (error) {
-      showToast('Failed to update stock. Check Product ID.', 'error'); // <-- Toast Error
+      showToast('Failed to add item. Please check all fields.', 'error');
     }
   };
 
@@ -89,25 +111,71 @@ export default function InventoryPage() {
       {/* Add Stock Form (Owner Only) */}
       {user?.role === 'OWNER' && (
         <Card className="border-l-4 border-l-green-500">
-          <CardHeader title="Add Incoming Stock" subtitle="Register new items or update existing stock levels." />
+          <CardHeader title="Add Items to Inventory" subtitle="Register new products or add stock to existing ones." />
           <CardContent>
-            <form onSubmit={handleSubmit(onAddStock)} className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
+            <form onSubmit={handleSubmit(onAddStock)} className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
               
+              {/* Date */}
               <div className="md:col-span-1">
-                <label className="block text-xs font-medium text-slate-500 mb-1">Product ID</label>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Date</label>
                 <div className="relative">
-                  <Tag className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                  <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                   <input 
-                    {...register('productId', { required: true })} 
-                    type="number" 
+                    {...register('date', { required: true })} 
+                    type="date" 
                     className="pl-9 w-full border-slate-300 rounded-lg text-sm focus:ring-green-500 focus:border-green-500" 
-                    placeholder="ID" 
                   />
                 </div>
               </div>
 
+              {/* Supplier */}
               <div className="md:col-span-1">
-                <label className="block text-xs font-medium text-slate-500 mb-1">Quantity</label>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Supplier</label>
+                <div className="relative">
+                  <User className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                  <input 
+                    {...register('supplier')} 
+                    type="text" 
+                    className="pl-9 w-full border-slate-300 rounded-lg text-sm focus:ring-green-500 focus:border-green-500" 
+                    placeholder="Supplier Name" 
+                  />
+                </div>
+              </div>
+
+              {/* Product Name */}
+              <div className="md:col-span-2">
+                <label className="block text-xs font-medium text-slate-500 mb-1">Product Name</label>
+                <div className="relative">
+                  <Tag className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                  <input 
+                    {...register('productName', { required: true })} 
+                    type="text" 
+                    className="pl-9 w-full border-slate-300 rounded-lg text-sm focus:ring-green-500 focus:border-green-500" 
+                    placeholder="e.g. Whole Chicken, Hotdogs" 
+                  />
+                </div>
+              </div>
+
+              {/* Category */}
+              <div className="md:col-span-1">
+                <label className="block text-xs font-medium text-slate-500 mb-1">Category</label>
+                <div className="relative">
+                  <Layers className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                  <select 
+                    {...register('category', { required: true })} 
+                    className="pl-9 w-full border-slate-300 rounded-lg text-sm focus:ring-green-500 focus:border-green-500 bg-white"
+                  >
+                    <option value="FROZEN_ITEM">Frozen Items</option>
+                    <option value="CHICKEN_PART">Chicken Parts</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Quantity / Kilos (Dynamic Label) */}
+              <div className="md:col-span-1">
+                <label className="block text-xs font-medium text-slate-500 mb-1 transition-all">
+                  {quantityLabel}
+                </label>
                 <input 
                   {...register('quantity', { required: true })} 
                   type="number" 
@@ -117,43 +185,41 @@ export default function InventoryPage() {
                 />
               </div>
 
+              {/* Purchase Price */}
               <div className="md:col-span-1">
-                <label className="block text-xs font-medium text-slate-500 mb-1">Buy Price</label>
-                <input 
-                  {...register('purchase_price', { required: true })} 
-                  type="number" 
-                  step="0.01" 
-                  className="w-full border-slate-300 rounded-lg text-sm focus:ring-green-500 focus:border-green-500" 
-                  placeholder="0.00" 
-                />
+                <label className="block text-xs font-medium text-slate-500 mb-1">Purchase Price</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-2 text-slate-400 font-sans">₱</span>
+                  <input 
+                    {...register('purchase_price', { required: true })} 
+                    type="number" 
+                    step="0.01" 
+                    className="pl-7 w-full border-slate-300 rounded-lg text-sm focus:ring-green-500 focus:border-green-500" 
+                    placeholder="0.00" 
+                  />
+                </div>
               </div>
 
+              {/* Selling Price */}
               <div className="md:col-span-1">
-                <label className="block text-xs font-medium text-slate-500 mb-1">Sell Price</label>
-                <input 
-                  {...register('selling_price', { required: true })} 
-                  type="number" 
-                  step="0.01" 
-                  className="w-full border-slate-300 rounded-lg text-sm focus:ring-green-500 focus:border-green-500" 
-                  placeholder="0.00" 
-                />
-              </div>
-
-              <div className="md:col-span-1">
-                <label className="block text-xs font-medium text-slate-500 mb-1">Supplier</label>
-                <input 
-                  {...register('supplier')} 
-                  type="text" 
-                  className="w-full border-slate-300 rounded-lg text-sm focus:ring-green-500 focus:border-green-500" 
-                  placeholder="Optional" 
-                />
+                <label className="block text-xs font-medium text-slate-500 mb-1">Selling Price</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-2 text-slate-400 font-sans">₱</span>
+                  <input 
+                    {...register('selling_price', { required: true })} 
+                    type="number" 
+                    step="0.01" 
+                    className="pl-7 w-full border-slate-300 rounded-lg text-sm focus:ring-green-500 focus:border-green-500" 
+                    placeholder="0.00" 
+                  />
+                </div>
               </div>
 
               <button 
                 type="submit" 
-                className="flex items-center justify-center gap-2 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors text-sm font-medium shadow-sm"
+                className="flex items-center justify-center gap-2 bg-green-600 text-white py-2.5 px-4 rounded-lg hover:bg-green-700 transition-colors text-sm font-medium shadow-sm col-span-1 md:col-span-4 mt-2"
               >
-                <Plus className="w-4 h-4" /> Add Stock
+                <Plus className="w-4 h-4" /> Add to Inventory
               </button>
             </form>
           </CardContent>
@@ -167,8 +233,9 @@ export default function InventoryPage() {
             <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase font-semibold text-slate-500">
               <tr>
                 <th className="px-6 py-4">Product Name</th>
+                <th className="px-6 py-4">Category</th>
                 <th className="px-6 py-4 text-center">Stock Level</th>
-                {user?.role === 'OWNER' && <th className="px-6 py-4 text-right">Purchase Cost</th>}
+                {user?.role === 'OWNER' && <th className="px-6 py-4 text-right">Purchase Price</th>}
                 <th className="px-6 py-4 text-right">Selling Price</th>
               </tr>
             </thead>
@@ -181,13 +248,21 @@ export default function InventoryPage() {
                     </div>
                     <div className="flex flex-col">
                       <span>{item.product?.name || `Product #${item.productId}`}</span>
-                      <span className="text-xs text-slate-400">ID: {item.productId}</span>
+                      {item.product?.category && (
+                        <span className="text-[10px] text-slate-400 hidden sm:inline">ID: {item.productId}</span>
+                      )}
                     </div>
                   </td>
                   
+                  <td className="px-6 py-4">
+                    <span className="text-xs font-medium bg-slate-100 text-slate-600 px-2 py-1 rounded border border-slate-200">
+                      {item.product?.category?.replace('_', ' ') || 'N/A'}
+                    </span>
+                  </td>
+
                   <td className="px-6 py-4 text-center">
                     <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${Number(item.quantity) > 20 ? 'bg-slate-100 text-slate-600' : 'bg-red-100 text-red-600'}`}>
-                      {Number(item.quantity)} units
+                      {Number(item.quantity)} {item.product?.category === 'CHICKEN_PART' ? 'kg' : 'units'}
                     </span>
                   </td>
 
@@ -205,7 +280,7 @@ export default function InventoryPage() {
               
               {inventory.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center text-slate-400">
+                  <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center">
                       <Package className="w-12 h-12 mb-3 opacity-20" />
                       <p>No inventory items found.</p>
