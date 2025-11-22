@@ -1,38 +1,24 @@
 "use client";
 
 import { useAuth } from '../../contexts/AuthContext';
+import { useSocket } from '../../contexts/SocketContext'; 
 import api from '../../services/api';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader } from '../../components/ui/Card';
 import { Store, Package, ShoppingCart, Truck, Search } from 'lucide-react';
 
 // --- Types ---
-interface Branch {
-  id: number;
-  name: string;
+interface Branch { id: number; name: string; }
+// Updated InventoryItem to include selling_price at root level (merged by backend)
+interface InventoryItem { 
+  id: number; 
+  quantity: number; 
+  selling_price?: number; 
+  product: { name: string; selling_price: number }; 
 }
+interface Sale { id: number; total_amount: number; created_at: string; staff: { username: string }; }
+interface Delivery { id: number; status: string; created_at: string; items: { quantity: number; product: { name: string } }[]; }
 
-interface InventoryItem {
-  id: number;
-  quantity: number;
-  product: { name: string; selling_price: number };
-}
-
-interface Sale {
-  id: number;
-  total_amount: number;
-  created_at: string;
-  staff: { username: string };
-}
-
-interface Delivery {
-  id: number;
-  status: string;
-  created_at: string;
-  items: { quantity: number; product: { name: string } }[];
-}
-
-// Static Branches
 const BRANCHES_DATA: Branch[] = [
   { id: 1, name: 'San Roque (Main)' },
   { id: 2, name: 'Rawis' },
@@ -44,6 +30,7 @@ const BRANCHES_DATA: Branch[] = [
 
 export default function BranchesPage() {
   const { user } = useAuth();
+  const socket = useSocket();
   const [selectedBranch, setSelectedBranch] = useState<number | null>(null);
   
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
@@ -52,31 +39,50 @@ export default function BranchesPage() {
   const [activeTab, setActiveTab] = useState<'INVENTORY' | 'SALES' | 'DELIVERIES'>('INVENTORY');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Fetch Data when Branch Changes
+  const loadBranchData = useCallback(async () => {
+    if (!selectedBranch) return;
+    setIsLoading(true);
+    try {
+      const [invRes, salesRes, delRes] = await Promise.all([
+        api.get<InventoryItem[]>(`/inventory/branch/${selectedBranch}`),
+        api.get<Sale[]>(`/sales/branch/${selectedBranch}`),
+        api.get<Delivery[]>(`/deliveries/branch/${selectedBranch}`),
+      ]);
+
+      setInventory(invRes.data);
+      setSales(salesRes.data);
+      setDeliveries(delRes.data);
+    } catch (err) {
+      console.error("Failed to load branch data", err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [selectedBranch]);
+
+  // Initial Load
   useEffect(() => {
-    if (!selectedBranch || !user) return;
+    if (selectedBranch && user) {
+      loadBranchData();
+    }
+  }, [selectedBranch, user, loadBranchData]);
 
-    const loadBranchData = async () => {
-      setIsLoading(true);
-      try {
-        const [invRes, salesRes, delRes] = await Promise.all([
-          api.get<InventoryItem[]>(`/inventory/branch/${selectedBranch}`),
-          api.get<Sale[]>(`/sales/branch/${selectedBranch}`),
-          api.get<Delivery[]>(`/deliveries/branch/${selectedBranch}`),
-        ]);
+  // Real-time Listeners
+  useEffect(() => {
+    if (!socket || !selectedBranch) return;
 
-        setInventory(invRes.data);
-        setSales(salesRes.data);
-        setDeliveries(delRes.data);
-      } catch (err) {
-        console.error("Failed to load branch data", err);
-      } finally {
-        setIsLoading(false);
-      }
+    const handleUpdate = () => {
+      // Reload data to get fresh stock/sales/prices
+      loadBranchData();
     };
 
-    loadBranchData();
-  }, [selectedBranch, user]);
+    socket.on('newSale', handleUpdate); 
+    socket.on('deliveryUpdated', handleUpdate);
+    
+    return () => { 
+      socket.off('newSale', handleUpdate); 
+      socket.off('deliveryUpdated', handleUpdate);
+    };
+  }, [socket, selectedBranch, loadBranchData]);
 
   if (user?.role !== 'OWNER') {
     return <div className="p-6 text-center text-slate-500">Access Denied. Owner permissions required.</div>;
@@ -159,6 +165,7 @@ export default function BranchesPage() {
                 </div>
               ) : (
                 <>
+                  {/* INVENTORY TAB */}
                   {activeTab === 'INVENTORY' && (
                     <div className="overflow-x-auto">
                       <table className="w-full text-left text-sm text-slate-600">
@@ -178,7 +185,10 @@ export default function BranchesPage() {
                                   {item.quantity}
                                 </span>
                               </td>
-                              <td className="px-6 py-4 text-right font-bold text-slate-700">₱{Number(item.product.selling_price).toFixed(2)}</td>
+                              <td className="px-6 py-4 text-right font-bold text-slate-700">
+                                {/* Display merged selling price */}
+                                ₱{Number(item.selling_price || item.product.selling_price || 0).toFixed(2)}
+                              </td>
                             </tr>
                           ))}
                           {inventory.length === 0 && <tr><td colSpan={3} className="p-8 text-center text-slate-400">No stock found in this branch.</td></tr>}
@@ -187,6 +197,7 @@ export default function BranchesPage() {
                     </div>
                   )}
 
+                  {/* SALES TAB */}
                   {activeTab === 'SALES' && (
                     <div className="overflow-x-auto">
                       <table className="w-full text-left text-sm text-slate-600">
@@ -214,6 +225,7 @@ export default function BranchesPage() {
                     </div>
                   )}
 
+                  {/* DELIVERIES TAB */}
                   {activeTab === 'DELIVERIES' && (
                     <div className="overflow-x-auto">
                       <table className="w-full text-left text-sm text-slate-600">
