@@ -1,18 +1,19 @@
-/* eslint-disable react-hooks/set-state-in-effect */
 /* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable react-hooks/exhaustive-deps */
+ 
 "use client";
 
 import { useAuth } from '../contexts/AuthContext';
 import { useSocket } from '../contexts/SocketContext';
 import { Bell, User, LogOut, Package, ShoppingCart } from 'lucide-react';
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 // Define the Notification Type
 interface NotificationItem {
   id: string;
   title: string;
   message: string;
-  timestamp: Date; // In state, this is a Date object. In JSON, it's a string.
+  timestamp: Date;
   read: boolean;
   type: 'sale' | 'delivery' | 'info';
 }
@@ -28,22 +29,19 @@ export default function Header() {
   const notifRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
 
-  // Helper to get the unique storage key for the current user
-  // Uniqueness ensures that if you log out and log in as someone else, you don't see old notifs
-  const getStorageKey = useCallback(() => {
-    if (!user) return null;
-    return `farmpulse_notifications_${user.id}_${user.role}`;
+  // FIX: Use a Ref to track the current user. 
+  const userRef = useRef(user);
+  useEffect(() => {
+    userRef.current = user;
   }, [user]);
 
-  // --- 1. Load Notifications from SessionStorage on Mount ---
+  // --- 1. Load Notifications from SessionStorage ---
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || !user) return;
 
-    const key = getStorageKey();
-    if (!key) return;
-
-    // FIX: Use sessionStorage to match your Auth system
+    const key = `farmpulse_notifications_${user.id}_${user.role}`;
     const stored = sessionStorage.getItem(key);
+    
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
@@ -54,54 +52,59 @@ export default function Header() {
         setNotifications(hydrated);
       } catch (e) {
         console.error("Failed to parse notifications", e);
+        setNotifications([]);
       }
     } else {
-      setNotifications([]); // Reset if no key found
+      setNotifications([]);
     }
-  }, [getStorageKey]);
+  }, [user?.id, user?.role]); 
 
-  // --- 2. Helper to Update State AND SessionStorage ---
-  const updateNotifications = (newNotifs: NotificationItem[]) => {
-    setNotifications(newNotifs);
-    const key = getStorageKey();
-    if (key && typeof window !== 'undefined') {
-      sessionStorage.setItem(key, JSON.stringify(newNotifs));
-    }
-  };
-
-  // --- Real-time Listener ---
+  // --- 2. Real-time Listener ---
   useEffect(() => {
-    if (!socket || !user) return;
+    if (!socket) return;
 
-    // Handler for New Sales
     const handleNewSale = (sale: any) => {
-      const isOwner = user.role === 'OWNER';
-      const isMyBranch = user.role === 'STAFF' && user.branchId === sale.branch?.id;
+      const currentUser = userRef.current;
+      if (!currentUser) return;
+
+      // Convert IDs to numbers to ensure "1" == 1 works
+      const userBranchId = Number(currentUser.branchId);
+      const saleBranchId = Number(sale.branch?.id);
+
+      const isOwner = currentUser.role === 'OWNER';
+      // Staff sees notification only if it matches their branch
+      const isMyBranch = currentUser.role === 'STAFF' && userBranchId === saleBranchId;
 
       if (isOwner || isMyBranch) {
         const newNotif: NotificationItem = {
           id: `sale-${Date.now()}-${Math.random()}`,
           title: 'New Sale Recorded',
-          message: `${sale.branch?.name}: $${sale.total_amount} sold by ${sale.staff?.username}`,
+          message: `${sale.branch?.name}: $${Number(sale.total_amount).toFixed(2)} sold by ${sale.staff?.username}`,
           timestamp: new Date(),
           read: false,
           type: 'sale'
         };
         
-        // Use functional state update to get latest list, then save to storage
         setNotifications(prev => {
           const updated = [newNotif, ...prev];
-          const key = getStorageKey();
-          if(key) sessionStorage.setItem(key, JSON.stringify(updated));
+          if (typeof window !== 'undefined') {
+             const key = `farmpulse_notifications_${currentUser.id}_${currentUser.role}`;
+             sessionStorage.setItem(key, JSON.stringify(updated));
+          }
           return updated;
         });
       }
     };
 
-    // Handler for Delivery Updates
     const handleDeliveryUpdate = (delivery: any) => {
-      const isOwner = user.role === 'OWNER';
-      const isMyBranch = user.role === 'STAFF' && user.branchId === delivery.branch?.id;
+      const currentUser = userRef.current;
+      if (!currentUser) return;
+
+      const userBranchId = Number(currentUser.branchId);
+      const deliveryBranchId = Number(delivery.branch?.id);
+
+      const isOwner = currentUser.role === 'OWNER';
+      const isMyBranch = currentUser.role === 'STAFF' && userBranchId === deliveryBranchId;
 
       if (isOwner || isMyBranch) {
         const newNotif: NotificationItem = {
@@ -115,8 +118,10 @@ export default function Header() {
 
         setNotifications(prev => {
           const updated = [newNotif, ...prev];
-          const key = getStorageKey();
-          if(key) sessionStorage.setItem(key, JSON.stringify(updated));
+          if (typeof window !== 'undefined') {
+             const key = `farmpulse_notifications_${currentUser.id}_${currentUser.role}`;
+             sessionStorage.setItem(key, JSON.stringify(updated));
+          }
           return updated;
         });
       }
@@ -129,7 +134,25 @@ export default function Header() {
       socket.off('newSale', handleNewSale);
       socket.off('deliveryUpdated', handleDeliveryUpdate);
     };
-  }, [socket, user, getStorageKey]);
+  }, [socket]);
+
+  // --- 3. UI Handlers ---
+  const markAllRead = () => {
+    const updated = notifications.map(n => ({ ...n, read: true }));
+    setNotifications(updated);
+    if (user) {
+      const key = `farmpulse_notifications_${user.id}_${user.role}`;
+      sessionStorage.setItem(key, JSON.stringify(updated));
+    }
+  };
+
+  const clearNotifications = () => {
+    setNotifications([]);
+    if (user) {
+      const key = `farmpulse_notifications_${user.id}_${user.role}`;
+      sessionStorage.setItem(key, JSON.stringify([]));
+    }
+  };
 
   // Click outside handler
   useEffect(() => {
@@ -147,20 +170,10 @@ export default function Header() {
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  const markAllRead = () => {
-    const updated = notifications.map(n => ({ ...n, read: true }));
-    updateNotifications(updated);
-  };
-
-  const clearNotifications = () => {
-    updateNotifications([]);
-  };
-
   return (
     <header className="bg-white h-16 border-b border-slate-200 sticky top-0 z-30 flex items-center justify-between px-6 shadow-sm">
       <div className="flex items-center gap-4">
         <h2 className="text-lg font-semibold text-slate-700 hidden md:block">
-          FarmPulse Management
         </h2>
       </div>
 
@@ -245,13 +258,6 @@ export default function Header() {
                 <p className="text-sm font-bold text-slate-800">{user?.username}</p>
                 <p className="text-xs text-slate-500">{user?.role}</p>
               </div>
-              
-              <button 
-                onClick={() => alert("Profile Settings - Coming Soon")}
-                className="w-full text-left px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors flex items-center gap-2"
-              >
-                <User className="w-4 h-4" /> Profile Settings
-              </button>
               
               <div className="my-1 border-t border-slate-50"></div>
               

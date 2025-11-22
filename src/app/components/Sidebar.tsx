@@ -70,7 +70,7 @@ export default function Sidebar() {
                   href={link.href}
                   className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group ${
                     isActive
-                      ? 'bg-green-600 text-white shadow-md translate-x-1'
+                      ? 'bg-gray-800 text-white shadow-md translate-x-1'
                       : 'hover:bg-slate-800 hover:text-white'
                   }`}
                 >
