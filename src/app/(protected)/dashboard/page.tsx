@@ -13,7 +13,7 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend, // <--- FIX: Added missing import
+  Legend,
   ResponsiveContainer,
   PieChart, 
   Pie, 
@@ -76,6 +76,8 @@ interface LCSummary {
   salesReport: { totalSales: number; costOfSales: number; netSales: number };
 }
 
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+
 export default function DashboardPage() {
   const { user, logout } = useAuth();
   const socket = useSocket();
@@ -120,19 +122,25 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!socket || !user) return;
     
+    // 1. Refresh data when a sale happens or delivery updates
     const handleUpdate = () => loadData();
     
+    // 2. Special handler for new sales to update the feed instantly
     const handleNewSale = (saleData: SaleUpdate) => {
-        setRecentSales((prev) => [saleData, ...prev].slice(0, 10));
+        if (user.role === 'OWNER' || (user.role === 'STAFF' && user.branchId === Number(saleData.branch))) {
+             setRecentSales((prev) => [saleData, ...prev].slice(0, 10));
+        }
         loadData();
     };
 
     socket.on('newSale', handleNewSale); 
     socket.on('deliveryUpdated', handleUpdate);
+    socket.on('newDelivery', handleUpdate); // <--- LISTEN FOR NEW DELIVERY
     
     return () => { 
         socket.off('newSale', handleNewSale); 
         socket.off('deliveryUpdated', handleUpdate);
+        socket.off('newDelivery', handleUpdate); // <--- CLEANUP
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [socket, user]);
@@ -307,7 +315,7 @@ export default function DashboardPage() {
     );
   }
 
-  // --- FREEZER VAN ---
+  // --- FREEZER VAN & LIVE CHICKEN ---
   if (user?.role === 'FREEZER_VAN' && fvSummary) {
     return (
       <div className="space-y-8 animate-in fade-in w-full">
@@ -341,7 +349,6 @@ export default function DashboardPage() {
     );
   }
 
-  // --- LIVE CHICKEN ---
   if (user?.role === 'LIVE_CHICKEN' && lcSummary) {
      const salesData = [
       { name: 'Net Sales', value: lcSummary.salesReport.netSales },
