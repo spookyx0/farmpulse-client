@@ -8,7 +8,7 @@ import api from '../../services/api';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Card, CardContent, CardHeader } from '../../components/ui/Card';
-import { Package, Plus, RefreshCw, Tag, Calendar, Layers, User } from 'lucide-react';
+import { Package, Plus, RefreshCw, Tag, Calendar, Layers, User, Filter } from 'lucide-react';
 
 // --- Types ---
 interface InventoryItem {
@@ -17,7 +17,7 @@ interface InventoryItem {
   quantity: number;
   purchase_price?: number | string;
   selling_price?: number | string;
-  product?: { name: string; selling_price?: number | string; category?: string };
+  product?: { name: string; selling_price?: number | string; category?: 'FROZEN_ITEM' | 'CHICKEN_PART' };
 }
 
 interface AddStockFormData {
@@ -35,6 +35,9 @@ export default function InventoryPage() {
   const { showToast } = useToast();
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [refresh, setRefresh] = useState(false);
+  
+  // Filter State
+  const [filterCategory, setFilterCategory] = useState<'ALL' | 'FROZEN_ITEM' | 'CHICKEN_PART'>('ALL');
 
   const { register, handleSubmit, watch, reset } = useForm<AddStockFormData>({
     defaultValues: {
@@ -43,7 +46,7 @@ export default function InventoryPage() {
     }
   });
 
-  // Watch category to change label dynamically
+  // Watch category to change label dynamically in the form
   const selectedCategory = watch('category');
   const quantityLabel = selectedCategory === 'CHICKEN_PART' ? 'Kilos' : 'Quantity';
 
@@ -87,6 +90,12 @@ export default function InventoryPage() {
       showToast('Failed to add item. Please check all fields.', 'error');
     }
   };
+
+  // Filter Logic
+  const filteredInventory = inventory.filter((item) => {
+    if (filterCategory === 'ALL') return true;
+    return item.product?.category === filterCategory;
+  });
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
@@ -226,6 +235,43 @@ export default function InventoryPage() {
         </Card>
       )}
 
+      {/* Filter Tabs */}
+      <div className="flex items-center gap-3 pb-2">
+        <Filter className="w-5 h-5 text-slate-400" />
+        <span className="text-sm font-medium text-slate-600 mr-2">Filter by Category:</span>
+        
+        <button
+          onClick={() => setFilterCategory('ALL')}
+          className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
+            filterCategory === 'ALL'
+              ? 'bg-slate-800 text-white shadow-md'
+              : 'bg-white text-slate-500 hover:bg-slate-100 border border-slate-200'
+          }`}
+        >
+          All
+        </button>
+        <button
+          onClick={() => setFilterCategory('FROZEN_ITEM')}
+          className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
+            filterCategory === 'FROZEN_ITEM'
+              ? 'bg-blue-600 text-white shadow-md'
+              : 'bg-white text-slate-500 hover:bg-slate-100 border border-slate-200'
+          }`}
+        >
+          Frozen Items
+        </button>
+        <button
+          onClick={() => setFilterCategory('CHICKEN_PART')}
+          className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
+            filterCategory === 'CHICKEN_PART'
+              ? 'bg-amber-500 text-white shadow-md'
+              : 'bg-white text-slate-500 hover:bg-slate-100 border border-slate-200'
+          }`}
+        >
+          Chicken Parts
+        </button>
+      </div>
+
       {/* Inventory Table */}
       <Card>
         <div className="overflow-x-auto">
@@ -240,10 +286,12 @@ export default function InventoryPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {inventory.map((item) => (
+              {filteredInventory.map((item) => (
                 <tr key={item.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-4 font-medium text-slate-900 flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-bold shadow-sm">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold shadow-sm ${
+                      item.product?.category === 'FROZEN_ITEM' ? 'bg-blue-500' : 'bg-amber-500'
+                    }`}>
                       {item.product?.name?.charAt(0) || '#'}
                     </div>
                     <div className="flex flex-col">
@@ -255,7 +303,11 @@ export default function InventoryPage() {
                   </td>
                   
                   <td className="px-6 py-4">
-                    <span className="text-xs font-medium bg-slate-100 text-slate-600 px-2 py-1 rounded border border-slate-200">
+                    <span className={`text-xs font-medium px-2 py-1 rounded border ${
+                      item.product?.category === 'FROZEN_ITEM' 
+                        ? 'bg-blue-50 text-blue-700 border-blue-100' 
+                        : 'bg-amber-50 text-amber-700 border-amber-100'
+                    }`}>
                       {item.product?.category?.replace('_', ' ') || 'N/A'}
                     </span>
                   </td>
@@ -278,7 +330,7 @@ export default function InventoryPage() {
                 </tr>
               ))}
               
-              {inventory.length === 0 && (
+              {filteredInventory.length === 0 && (
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center">
