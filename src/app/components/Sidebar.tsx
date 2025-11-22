@@ -3,35 +3,47 @@
 import Link from 'next/link';
 import { useAuth } from '../contexts/AuthContext';
 import { usePathname } from 'next/navigation';
+import { 
+  LayoutDashboard, 
+  Store, 
+  Package, 
+  Truck, 
+  Banknote, 
+  ShoppingCart, 
+  Snowflake, 
+  Egg, 
+  ClipboardList 
+} from 'lucide-react';
 
-type NavLink = { href: string; label: string; icon?: string };
+// Update type to accept React Components (Icons) instead of just strings
+type NavLink = { href: string; label: string; icon: React.ReactNode };
 
 const ownerLinks: NavLink[] = [
-  { href: '/dashboard', label: 'Dashboard', icon: '📊' },
-  { href: '/branches', label: 'Branches', icon: '🏢' },
-  { href: '/inventory', label: 'Inventory', icon: '📦' },
-  { href: '/deliveries', label: 'Deliveries', icon: '🚚' },
-  { href: '/expenses', label: 'Expenses', icon: '💰' },
+  { href: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
+  { href: '/branches', label: 'Branches', icon: <Store className="w-5 h-5" /> },
+  { href: '/inventory', label: 'Inventory', icon: <Package className="w-5 h-5" /> },
+  { href: '/deliveries', label: 'Deliveries', icon: <Truck className="w-5 h-5" /> },
+  { href: '/expenses', label: 'Expenses', icon: <Banknote className="w-5 h-5" /> },
 ];
 
 const staffLinks: NavLink[] = [
-  { href: '/dashboard', label: 'Dashboard', icon: '📊' },
-  { href: '/sales', label: 'Sales Register', icon: '🛒' },
-  { href: '/inventory', label: 'Inventory', icon: '📦' },
-  { href: '/deliveries', label: 'Deliveries', icon: '🚚' },
-  { href: '/expenses', label: 'Expenses', icon: '💰' },
+  { href: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
+  { href: '/sales', label: 'Sales Register', icon: <ShoppingCart className="w-5 h-5" /> },
+  { href: '/inventory', label: 'Inventory', icon: <Package className="w-5 h-5" /> },
+  { href: '/deliveries', label: 'Deliveries', icon: <Truck className="w-5 h-5" /> },
+  { href: '/expenses', label: 'Expenses', icon: <Banknote className="w-5 h-5" /> },
 ];
 
 const freezerVanLinks: NavLink[] = [
-  { href: '/dashboard', label: 'Dashboard', icon: '📊' },
-  { href: '/freezer-van/sales', label: 'Van Sales', icon: '🚚' },
-  { href: '/freezer-van/inventory', label: 'Van Inventory', icon: '❄️' },
+  { href: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
+  { href: '/freezer-van/sales', label: 'Van Sales', icon: <Truck className="w-5 h-5" /> },
+  { href: '/freezer-van/inventory', label: 'Van Inventory', icon: <Snowflake className="w-5 h-5" /> },
 ];
 
 const liveChickenLinks: NavLink[] = [
-  { href: '/dashboard', label: 'Dashboard', icon: '📊' },
-  { href: '/live-chicken/distribution', label: 'Distribution', icon: '🐓' },
-  { href: '/live-chicken/inventory', label: 'Coop Inventory', icon: '📝' },
+  { href: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
+  { href: '/live-chicken/distribution', label: 'Distribution', icon: <Egg className="w-5 h-5" /> },
+  { href: '/live-chicken/inventory', label: 'Coop Inventory', icon: <ClipboardList className="w-5 h-5" /> },
 ];
 
 const roleLinks = {
@@ -50,7 +62,7 @@ export default function Sidebar() {
   return (
     <nav className="w-full h-full bg-slate-900 text-slate-300 flex flex-col shadow-xl border-r border-slate-800">
       {/* Minimal Logo Header */}
-      <div className="h-16 flex items-center px-6 border-b border-slate-800 bg-slate-450">
+      <div className="h-16 flex items-center px-6 border-b border-slate-800 bg-slate-950">
         <h2 className="text-xl font-bold text-white tracking-wide flex items-center gap-2">
           <span className="text-green-500 text-2xl">❖</span> FarmPulse
         </h2>
@@ -62,7 +74,7 @@ export default function Sidebar() {
           Main Menu
         </p>
         <ul className="space-y-1 px-3">
-          {links.map((link: NavLink) => {
+          {links.map((link) => {
             const isActive = pathname === link.href;
             return (
               <li key={link.href}>
@@ -70,11 +82,11 @@ export default function Sidebar() {
                   href={link.href}
                   className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group ${
                     isActive
-                      ? 'bg-gray-800 text-white shadow-md translate-x-1'
+                      ? 'bg-green-600 text-white shadow-md translate-x-1'
                       : 'hover:bg-slate-800 hover:text-white'
                   }`}
                 >
-                  <span className={`text-lg transition-transform group-hover:scale-110 ${isActive ? '' : 'opacity-70 group-hover:opacity-100'}`}>
+                  <span className={`transition-transform group-hover:scale-110 ${isActive ? '' : 'opacity-70 group-hover:opacity-100'}`}>
                     {link.icon}
                   </span>
                   <span className="font-medium text-sm">{link.label}</span>
@@ -87,7 +99,7 @@ export default function Sidebar() {
 
       {/* Minimal Footer (Version Info) */}
       <div className="p-4 border-t border-slate-800 text-center text-xs text-slate-600">
-        <p>FarmPulse System</p>
+        <p>FarmPulse System v1.0</p>
         <p className="mt-1">© 2025</p>
       </div>
     </nav>
