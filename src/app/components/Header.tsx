@@ -1,17 +1,18 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useAuth } from '../contexts/AuthContext';
 import { useSocket } from '../contexts/SocketContext';
 import { Bell, User, LogOut, Package, ShoppingCart } from 'lucide-react';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 
 // Define the Notification Type
 interface NotificationItem {
   id: string;
   title: string;
   message: string;
-  timestamp: Date;
+  timestamp: Date; // In state, this is a Date object. In JSON, it's a string.
   read: boolean;
   type: 'sale' | 'delivery' | 'info';
 }
@@ -27,12 +28,53 @@ export default function Header() {
   const notifRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
 
+  // Helper to get the unique storage key for the current user
+  // Uniqueness ensures that if you log out and log in as someone else, you don't see old notifs
+  const getStorageKey = useCallback(() => {
+    if (!user) return null;
+    return `farmpulse_notifications_${user.id}_${user.role}`;
+  }, [user]);
+
+  // --- 1. Load Notifications from SessionStorage on Mount ---
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const key = getStorageKey();
+    if (!key) return;
+
+    // FIX: Use sessionStorage to match your Auth system
+    const stored = sessionStorage.getItem(key);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        const hydrated = parsed.map((n: any) => ({
+          ...n,
+          timestamp: new Date(n.timestamp) 
+        }));
+        setNotifications(hydrated);
+      } catch (e) {
+        console.error("Failed to parse notifications", e);
+      }
+    } else {
+      setNotifications([]); // Reset if no key found
+    }
+  }, [getStorageKey]);
+
+  // --- 2. Helper to Update State AND SessionStorage ---
+  const updateNotifications = (newNotifs: NotificationItem[]) => {
+    setNotifications(newNotifs);
+    const key = getStorageKey();
+    if (key && typeof window !== 'undefined') {
+      sessionStorage.setItem(key, JSON.stringify(newNotifs));
+    }
+  };
+
   // --- Real-time Listener ---
   useEffect(() => {
     if (!socket || !user) return;
 
+    // Handler for New Sales
     const handleNewSale = (sale: any) => {
-      // Filter: Only Owner OR Staff of the specific branch should see this
       const isOwner = user.role === 'OWNER';
       const isMyBranch = user.role === 'STAFF' && user.branchId === sale.branch?.id;
 
@@ -45,7 +87,14 @@ export default function Header() {
           read: false,
           type: 'sale'
         };
-        setNotifications(prev => [newNotif, ...prev]);
+        
+        // Use functional state update to get latest list, then save to storage
+        setNotifications(prev => {
+          const updated = [newNotif, ...prev];
+          const key = getStorageKey();
+          if(key) sessionStorage.setItem(key, JSON.stringify(updated));
+          return updated;
+        });
       }
     };
 
@@ -63,7 +112,13 @@ export default function Header() {
           read: false,
           type: 'delivery'
         };
-        setNotifications(prev => [newNotif, ...prev]);
+
+        setNotifications(prev => {
+          const updated = [newNotif, ...prev];
+          const key = getStorageKey();
+          if(key) sessionStorage.setItem(key, JSON.stringify(updated));
+          return updated;
+        });
       }
     };
 
@@ -74,7 +129,7 @@ export default function Header() {
       socket.off('newSale', handleNewSale);
       socket.off('deliveryUpdated', handleDeliveryUpdate);
     };
-  }, [socket, user]);
+  }, [socket, user, getStorageKey]);
 
   // Click outside handler
   useEffect(() => {
@@ -93,17 +148,19 @@ export default function Header() {
   const unreadCount = notifications.filter(n => !n.read).length;
 
   const markAllRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    const updated = notifications.map(n => ({ ...n, read: true }));
+    updateNotifications(updated);
   };
 
   const clearNotifications = () => {
-    setNotifications([]);
+    updateNotifications([]);
   };
 
   return (
     <header className="bg-white h-16 border-b border-slate-200 sticky top-0 z-30 flex items-center justify-between px-6 shadow-sm">
       <div className="flex items-center gap-4">
         <h2 className="text-lg font-semibold text-slate-700 hidden md:block">
+          FarmPulse Management
         </h2>
       </div>
 
@@ -146,7 +203,9 @@ export default function Header() {
                         <p className="text-sm text-slate-800 font-medium leading-snug">{notif.title}</p>
                         <p className="text-xs text-slate-500 mt-0.5">{notif.message}</p>
                         <p className="text-[10px] text-slate-400 mt-1">
-                          {notif.timestamp.toLocaleTimeString()}
+                          {notif.timestamp instanceof Date && !isNaN(notif.timestamp.getTime()) 
+                            ? notif.timestamp.toLocaleTimeString() 
+                            : 'Just now'}
                         </p>
                       </div>
                     </div>
