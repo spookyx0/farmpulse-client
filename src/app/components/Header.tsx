@@ -1,18 +1,84 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useAuth } from '../contexts/AuthContext';
-import { Bell, User, LogOut } from 'lucide-react';
+import { useSocket } from '../contexts/SocketContext';
+import { Bell, User, LogOut, Package, ShoppingCart } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
+
+// Define the Notification Type
+interface NotificationItem {
+  id: string;
+  title: string;
+  message: string;
+  timestamp: Date;
+  read: boolean;
+  type: 'sale' | 'delivery' | 'info';
+}
 
 export default function Header() {
   const { user, logout } = useAuth();
+  const socket = useSocket();
+  
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   
-  // Click outside handler to close dropdowns
   const notifRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
 
+  // --- Real-time Listener ---
+  useEffect(() => {
+    if (!socket || !user) return;
+
+    // Handler for New Sales
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const handleNewSale = (sale: any) => {
+      // Filter: Only Owner OR Staff of the specific branch should see this
+      const isOwner = user.role === 'OWNER';
+      const isMyBranch = user.role === 'STAFF' && user.branchId === sale.branch?.id;
+
+      if (isOwner || isMyBranch) {
+        const newNotif: NotificationItem = {
+          id: `sale-${Date.now()}-${Math.random()}`,
+          title: 'New Sale Recorded',
+          message: `${sale.branch?.name}: $${sale.total_amount} sold by ${sale.staff?.username}`,
+          timestamp: new Date(),
+          read: false,
+          type: 'sale'
+        };
+        setNotifications(prev => [newNotif, ...prev]);
+      }
+    };
+
+    // Handler for Delivery Updates
+    const handleDeliveryUpdate = (delivery: any) => {
+      const isOwner = user.role === 'OWNER';
+      const isMyBranch = user.role === 'STAFF' && user.branchId === delivery.branch?.id;
+
+      if (isOwner || isMyBranch) {
+        const newNotif: NotificationItem = {
+          id: `del-${Date.now()}-${Math.random()}`,
+          title: 'Delivery Update',
+          message: `Delivery #${delivery.id} is now ${delivery.status}`,
+          timestamp: new Date(),
+          read: false,
+          type: 'delivery'
+        };
+        setNotifications(prev => [newNotif, ...prev]);
+      }
+    };
+
+    socket.on('newSale', handleNewSale);
+    socket.on('deliveryUpdated', handleDeliveryUpdate);
+
+    return () => {
+      socket.off('newSale', handleNewSale);
+      socket.off('deliveryUpdated', handleDeliveryUpdate);
+    };
+  }, [socket, user]);
+
+  // Click outside handler
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
@@ -26,48 +92,74 @@ export default function Header() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  const markAllRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  };
+
+  const clearNotifications = () => {
+    setNotifications([]);
+  };
+
   return (
     <header className="bg-white h-16 border-b border-slate-200 sticky top-0 z-30 flex items-center justify-between px-6 shadow-sm">
-      {/* Left Side: Branding or Page Title Context */}
       <div className="flex items-center gap-4">
         <h2 className="text-lg font-semibold text-slate-700 hidden md:block">
+          FarmPulse Management
         </h2>
       </div>
 
-      {/* Right Side: Actions */}
       <div className="flex items-center gap-2 md:gap-4">
         
-        {/* Notifications */}
+        {/* Notifications Bell */}
         <div className="relative" ref={notifRef}>
           <button 
             onClick={() => setShowNotifications(!showNotifications)}
             className="p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors relative"
           >
             <Bell className="w-5 h-5" />
-            {/* Notification Badge Mockup */}
-            <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full"></span>
+            {unreadCount > 0 && (
+              <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full animate-pulse"></span>
+            )}
           </button>
 
           {/* Notifications Dropdown */}
           {showNotifications && (
-            <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-slate-100 py-2 animate-in fade-in zoom-in-95 duration-200 origin-top-right">
+            <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-xl shadow-xl border border-slate-100 py-2 animate-in fade-in zoom-in-95 duration-200 origin-top-right z-50">
               <div className="px-4 py-3 border-b border-slate-50 flex justify-between items-center">
-                <h3 className="text-sm font-bold text-slate-800">Notifications</h3>
-                <span className="text-xs text-blue-600 cursor-pointer hover:underline">Mark all read</span>
+                <h3 className="text-sm font-bold text-slate-800">Notifications ({unreadCount})</h3>
+                <div className="flex gap-2">
+                  <button onClick={markAllRead} className="text-xs text-blue-600 hover:underline">Mark Read</button>
+                  <button onClick={clearNotifications} className="text-xs text-slate-400 hover:text-slate-600">Clear</button>
+                </div>
               </div>
-              <div className="max-h-64 overflow-y-auto">
-                {/* Mock Notification Items */}
-                <div className="px-4 py-3 hover:bg-slate-50 border-b border-slate-50 transition-colors cursor-pointer">
-                  <p className="text-sm text-slate-800 font-medium">New delivery received</p>
-                  <p className="text-xs text-slate-500 mt-0.5">San Roque Branch • 2 mins ago</p>
-                </div>
-                <div className="px-4 py-3 hover:bg-slate-50 border-b border-slate-50 transition-colors cursor-pointer">
-                  <p className="text-sm text-slate-800 font-medium">Low stock alert: Whole Chicken</p>
-                  <p className="text-xs text-slate-500 mt-0.5">Rawis Branch • 1 hour ago</p>
-                </div>
-                <div className="px-4 py-3 text-center text-xs text-slate-400 mt-2">
-                  No more notifications
-                </div>
+              
+              <div className="max-h-80 overflow-y-auto">
+                {notifications.length > 0 ? (
+                  notifications.map((notif) => (
+                    <div 
+                      key={notif.id} 
+                      className={`px-4 py-3 border-b border-slate-50 transition-colors hover:bg-slate-50 flex gap-3 ${!notif.read ? 'bg-blue-50/30' : ''}`}
+                    >
+                      <div className={`mt-1 p-2 rounded-full h-fit ${notif.type === 'sale' ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
+                        {notif.type === 'sale' ? <ShoppingCart className="w-4 h-4" /> : <Package className="w-4 h-4" />}
+                      </div>
+                      <div>
+                        <p className="text-sm text-slate-800 font-medium leading-snug">{notif.title}</p>
+                        <p className="text-xs text-slate-500 mt-0.5">{notif.message}</p>
+                        <p className="text-[10px] text-slate-400 mt-1">
+                          {notif.timestamp.toLocaleTimeString()}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="px-4 py-8 text-center text-slate-400 text-sm">
+                    <Bell className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                    No new notifications
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -92,7 +184,7 @@ export default function Header() {
 
           {/* Profile Dropdown */}
           {showProfileMenu && (
-            <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 py-2 animate-in fade-in zoom-in-95 duration-200 origin-top-right">
+            <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 py-2 animate-in fade-in zoom-in-95 duration-200 origin-top-right z-50">
               <div className="px-4 py-3 border-b border-slate-50 md:hidden">
                 <p className="text-sm font-bold text-slate-800">{user?.username}</p>
                 <p className="text-xs text-slate-500">{user?.role}</p>
