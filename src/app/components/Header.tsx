@@ -31,8 +31,6 @@ export default function Header() {
   useEffect(() => {
     if (!socket || !user) return;
 
-    // Handler for New Sales
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleNewSale = (sale: any) => {
       // Filter: Only Owner OR Staff of the specific branch should see this
       const isOwner = user.role === 'OWNER';
@@ -106,7 +104,6 @@ export default function Header() {
     <header className="bg-white h-16 border-b border-slate-200 sticky top-0 z-30 flex items-center justify-between px-6 shadow-sm">
       <div className="flex items-center gap-4">
         <h2 className="text-lg font-semibold text-slate-700 hidden md:block">
-          FarmPulse Management
         </h2>
       </div>
 
