@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect, ReactNode } from 'react';
 import Sidebar from '../components/Sidebar';
-import Header from '../components/Header'; // <-- Import Header
+import Header from '../components/Header';
 
 export default function ProtectedLayout({
   children,
@@ -38,19 +38,20 @@ export default function ProtectedLayout({
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
       {/* 1. Sidebar (Fixed Left) */}
-      <aside className="hidden md:block w-64 flex-shrink-0">
+      <aside className="hidden md:block w-64 flex-shrink-0 border-r border-slate-200">
         <Sidebar />
       </aside>
 
       {/* 2. Main Content Wrapper (Right Side) */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 bg-slate-100/50">
         
         {/* 2a. Header (Fixed Top) */}
         <Header />
 
         {/* 2b. Scrollable Page Content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-8 scroll-smooth">
-          <div className="max-w-7xl mx-auto w-full">
+        {/* REMOVED max-w-7xl to allow full width */}
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 scroll-smooth">
+          <div className="w-full h-full"> 
             {children}
           </div>
         </main>

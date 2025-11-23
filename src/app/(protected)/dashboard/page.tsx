@@ -18,8 +18,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  AreaChart,
-  Area,
   Legend,
 } from 'recharts';
 import { AxiosError } from 'axios';
@@ -291,14 +289,15 @@ export default function DashboardPage() {
 
     return (
       <div className="space-y-6 w-full animate-in fade-in">
-        <div className="bg-white border border-slate-200 p-6 rounded-xl shadow-sm flex justify-between items-center">
+        <div className="bg-white border border-slate-200 p-6 rounded-xl shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold text-slate-800">Branch Dashboard</h1>
             <p className="text-slate-500 text-sm mt-1">
               Overview for {new Date().toLocaleDateString(undefined, {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'})}
             </p>
           </div>
-          <div className="bg-blue-50 text-blue-700 px-4 py-2 rounded-lg text-sm font-medium border border-blue-100">
+          <div className="bg-slate-50 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium border border-slate-200 flex items-center gap-2">
+            <Truck className="w-4 h-4 text-slate-400" />
             Branch ID: {user.branchId}
           </div>
         </div>
@@ -311,19 +310,20 @@ export default function DashboardPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-           <Card className="lg:col-span-2 h-[450px] flex flex-col">
-              <CardHeader title="Recent Transactions" subtitle="Sales recorded today at this branch" />
-              <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+           {/* Recent Sales List (2 cols) */}
+           <Card className="lg:col-span-2 h-[500px] flex flex-col">
+              <CardHeader title="Today's Transactions" subtitle="Recent sales recorded at this branch" />
+              <div className="flex-1 overflow-y-auto p-0 custom-scrollbar">
                 {recentSales.length > 0 ? (
-                  <div className="space-y-2">
+                  <div className="divide-y divide-slate-50">
                     {recentSales.map((sale) => (
-                      <div key={sale.id} className="flex justify-between items-center p-3 hover:bg-slate-50 rounded-lg border border-slate-100 hover:border-slate-200 transition-all">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-green-50 text-green-600 rounded-lg">
-                            <DollarSign className="w-4 h-4" />
+                      <div key={sale.id} className="flex justify-between items-center p-4 hover:bg-slate-50 transition-all">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 bg-green-50 text-green-600 rounded-full flex items-center justify-center border border-green-100">
+                            <DollarSign className="w-5 h-5" />
                           </div>
                           <div>
-                            <p className="text-sm font-semibold text-slate-800">Sale #{sale.id}</p>
+                            <p className="text-sm font-bold text-slate-800">Sale #{sale.id}</p>
                             <p className="text-xs text-slate-500">{new Date(sale.created_at).toLocaleTimeString()}</p>
                           </div>
                         </div>
@@ -339,28 +339,35 @@ export default function DashboardPage() {
               </div>
            </Card>
 
+           {/* Quick Actions Panel (1 col) */}
            <div className="space-y-6">
-              <Card className="bg-blue-600 text-white border-none">
+              <Card className="bg-gradient-to-br from-blue-600 to-blue-700 text-white border-none shadow-lg shadow-blue-200">
                 <CardContent>
                   <div className="flex items-center justify-between mb-6">
-                    <h3 className="font-bold text-lg">Pending Deliveries</h3>
-                    <span className="bg-white/20 backdrop-blur-sm text-white text-xs font-bold px-3 py-1 rounded-full">{staffSummary?.pendingDeliveries || 0}</span>
+                    <h3 className="font-bold text-lg flex items-center gap-2">
+                      <Truck className="w-5 h-5 text-blue-200" /> Deliveries
+                    </h3>
+                    <span className="bg-white/20 backdrop-blur-md text-white text-xs font-bold px-3 py-1 rounded-full border border-white/10">
+                      {staffSummary?.pendingDeliveries || 0} Pending
+                    </span>
                   </div>
-                  <p className="text-blue-100 text-sm mb-6">Incoming shipments from HQ requiring your acceptance.</p>
-                  <a href="/deliveries" className="flex items-center justify-center w-full bg-white text-blue-600 py-2.5 rounded-lg hover:bg-blue-50 transition-colors text-sm font-bold">
+                  <p className="text-blue-100 text-sm mb-6 leading-relaxed">
+                    Incoming shipments from HQ requiring your acceptance and inventory verification.
+                  </p>
+                  <a href="/deliveries" className="flex items-center justify-center w-full bg-white text-blue-600 py-3 rounded-xl hover:bg-blue-50 transition-all transform active:scale-95 text-sm font-bold shadow-sm">
                     View Deliveries <ArrowUpRight className="w-4 h-4 ml-2" />
                   </a>
                 </CardContent>
               </Card>
 
               <Card>
-                 <CardHeader title="Performance" />
-                 <div className="h-48 p-2">
+                 <CardHeader title="Daily Performance" />
+                 <div className="h-56 p-4">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={staffChartData}>
-                        <XAxis dataKey="name" axisLine={false} tickLine={false} />
+                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#94a3b8'}} />
                         <Tooltip cursor={{fill: 'transparent'}} contentStyle={tooltipStyle} />
-                        <Bar dataKey="Amount" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={40} />
+                        <Bar dataKey="Amount" fill="#3b82f6" radius={[6, 6, 0, 0]} barSize={40} />
                       </BarChart>
                     </ResponsiveContainer>
                  </div>
@@ -371,52 +378,47 @@ export default function DashboardPage() {
     );
   }
 
-  // --- RENDER: FREEZER VAN UI ---
+  // --- RENDER: FREEZER VAN ---
   if (user?.role === 'FREEZER_VAN' && fvSummary) {
-    const fvChartData = [
-      { name: 'Sales', Daily: fvSummary.daily.sales, Monthly: fvSummary.monthly.sales },
-      { name: 'Expenses', Daily: fvSummary.daily.expenses, Monthly: fvSummary.monthly.expenses },
-    ];
-
     return (
       <div className="space-y-8 animate-in fade-in w-full">
         <div className="flex items-center gap-4 bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-           <div className="p-3 bg-blue-50 rounded-full text-blue-600">
+           <div className="p-4 bg-blue-50 rounded-full text-blue-600 border border-blue-100">
               <Snowflake className="w-8 h-8" />
            </div>
            <div>
              <h1 className="text-2xl font-bold text-slate-800">Freezer Van Operations</h1>
-             <p className="text-slate-500 text-sm">Daily and Monthly Performance Monitoring</p>
+             <p className="text-slate-500 text-sm mt-1">Daily and Monthly Performance Monitoring</p>
            </div>
         </div>
         
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Daily Card */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <Card className="border-t-4 border-t-blue-500">
             <CardHeader title="Daily Monitoring" subtitle="Today's Metrics" />
             <CardContent>
-              <div className="grid grid-cols-3 gap-4 text-center">
+              <div className="grid grid-cols-3 gap-4 text-center divide-x divide-slate-100">
                 <KPIMini label="Sales" value={fvSummary.daily.sales} color="green" />
                 <KPIMini label="Expenses" value={fvSummary.daily.expenses} color="red" />
                 <KPIMini label="Profit" value={fvSummary.daily.profit} color="blue" />
               </div>
-              <div className="mt-6 pt-6 border-t border-slate-100">
-                 <p className="text-xs text-slate-400 text-center">Net Profit Margin: {fvSummary.daily.sales > 0 ? ((fvSummary.daily.profit / fvSummary.daily.sales) * 100).toFixed(1) : 0}%</p>
+              <div className="mt-6 pt-6 border-t border-slate-100 text-center">
+                 <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Net Profit Margin</p>
+                 <p className="text-2xl font-bold text-slate-700">{fvSummary.daily.sales > 0 ? ((fvSummary.daily.profit / fvSummary.daily.sales) * 100).toFixed(1) : 0}%</p>
               </div>
             </CardContent>
           </Card>
 
-          {/* Monthly Card */}
           <Card className="border-t-4 border-t-purple-500">
             <CardHeader title="Monthly Monitoring" subtitle="Current Month Aggregates" />
             <CardContent>
-              <div className="grid grid-cols-3 gap-4 text-center">
+              <div className="grid grid-cols-3 gap-4 text-center divide-x divide-slate-100">
                 <KPIMini label="Sales" value={fvSummary.monthly.sales} color="green" />
                 <KPIMini label="Expenses" value={fvSummary.monthly.expenses} color="red" />
                 <KPIMini label="Profit" value={fvSummary.monthly.profit} color="blue" />
               </div>
-              <div className="mt-6 pt-6 border-t border-slate-100">
-                 <p className="text-xs text-slate-400 text-center">Net Profit Margin: {fvSummary.monthly.sales > 0 ? ((fvSummary.monthly.profit / fvSummary.monthly.sales) * 100).toFixed(1) : 0}%</p>
+              <div className="mt-6 pt-6 border-t border-slate-100 text-center">
+                 <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Net Profit Margin</p>
+                 <p className="text-2xl font-bold text-slate-700">{fvSummary.monthly.sales > 0 ? ((fvSummary.monthly.profit / fvSummary.monthly.sales) * 100).toFixed(1) : 0}%</p>
               </div>
             </CardContent>
           </Card>
@@ -424,13 +426,16 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader title="Performance Analytics" subtitle="Daily vs Monthly Comparison" />
-          <div className="h-80 p-4">
+          <div className="h-96 p-4">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={fvChartData} barSize={60}>
+              <BarChart data={[
+                { name: 'Sales', Daily: fvSummary.daily.sales, Monthly: fvSummary.monthly.sales },
+                { name: 'Expenses', Daily: fvSummary.daily.expenses, Monthly: fvSummary.monthly.expenses },
+              ]} barSize={60}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                <YAxis axisLine={false} tickLine={false} tickFormatter={(val) => `₱${val}`} />
-                <Tooltip contentStyle={tooltipStyle} />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b'}} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tickFormatter={(val) => `₱${val}`} tick={{fill: '#64748b'}} />
+                <Tooltip contentStyle={tooltipStyle} cursor={{fill: '#f8fafc'}} />
                 <Legend />
                 <Bar dataKey="Daily" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Daily Total" />
                 <Bar dataKey="Monthly" fill="#8b5cf6" radius={[4, 4, 0, 0]} name="Monthly Total" />
@@ -442,22 +447,21 @@ export default function DashboardPage() {
     );
   }
 
-  // --- RENDER: LIVE CHICKEN UI ---
+  // --- RENDER: LIVE CHICKEN ---
   if (user?.role === 'LIVE_CHICKEN' && lcSummary) {
      const salesData = [
       { name: 'Net Sales', value: lcSummary.salesReport.netSales },
       { name: 'Cost', value: lcSummary.salesReport.costOfSales },
     ];
-
      return (
       <div className="space-y-8 animate-in fade-in w-full">
         <div className="flex items-center gap-4 bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-           <div className="p-3 bg-amber-50 rounded-full text-amber-600">
+           <div className="p-4 bg-amber-50 rounded-full text-amber-600 border border-amber-100">
               <Egg className="w-8 h-8" />
            </div>
            <div>
              <h1 className="text-2xl font-bold text-slate-800">Live Chicken Operations</h1>
-             <p className="text-slate-500 text-sm">Inventory and Distribution Tracking</p>
+             <p className="text-slate-500 text-sm mt-1">Inventory and Distribution Tracking</p>
            </div>
         </div>
 
@@ -467,9 +471,9 @@ export default function DashboardPage() {
            <KPICard title="Net Sales" value={`₱${lcSummary.salesReport.netSales.toLocaleString()}`} icon={<DollarSign className="w-5 h-5"/>} color="green" />
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
            <Card>
-             <CardHeader title="Profit Margin Analysis" />
+             <CardHeader title="Profit Margin Visualization" />
              <div className="h-80 flex flex-col items-center justify-center">
                <ResponsiveContainer width="100%" height="100%">
                  <PieChart>
@@ -495,27 +499,29 @@ export default function DashboardPage() {
            <Card>
              <CardHeader title="Detailed Breakdown" />
              <CardContent>
-               <div className="space-y-4">
-                  <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
-                    <span className="text-slate-600">Total Inventory Weight</span>
-                    <span className="font-bold text-slate-800">{lcSummary.inventoryReport.kilos.toFixed(2)} kg</span>
+               <div className="space-y-5">
+                  <div className="flex justify-between items-center p-4 bg-slate-50 rounded-xl border border-slate-100">
+                    <span className="text-slate-600 font-medium">Total Inventory Weight</span>
+                    <span className="font-bold text-slate-800 text-lg">{lcSummary.inventoryReport.kilos.toFixed(2)} kg</span>
                   </div>
-                  <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
-                    <span className="text-slate-600">Total Distributed Weight</span>
-                    <span className="font-bold text-slate-800">{lcSummary.distributionReport.kilos.toFixed(2)} kg</span>
+                  <div className="flex justify-between items-center p-4 bg-slate-50 rounded-xl border border-slate-100">
+                    <span className="text-slate-600 font-medium">Total Distributed Weight</span>
+                    <span className="font-bold text-slate-800 text-lg">{lcSummary.distributionReport.kilos.toFixed(2)} kg</span>
                   </div>
-                  <div className="border-t border-slate-100 my-4"></div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-500">Gross Sales</span>
-                    <span className="font-bold text-slate-800">₱{lcSummary.salesReport.totalSales.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-500">Cost of Sales</span>
-                    <span className="font-bold text-red-500">-₱{lcSummary.salesReport.costOfSales.toLocaleString()}</span>
-                  </div>
-                  <div className="p-3 bg-green-50 rounded-lg flex justify-between items-center mt-2">
-                    <span className="text-green-700 font-semibold">Net Profit</span>
-                    <span className="font-bold text-green-700 text-lg">₱{lcSummary.salesReport.netSales.toLocaleString()}</span>
+                  
+                  <div className="pt-4 border-t border-slate-100 space-y-3">
+                    <div className="flex justify-between items-center">
+                        <span className="text-slate-500">Gross Sales</span>
+                        <span className="font-bold text-slate-800 text-lg">₱{lcSummary.salesReport.totalSales.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                        <span className="text-slate-500">Cost of Sales</span>
+                        <span className="font-bold text-red-500 text-lg">-₱{lcSummary.salesReport.costOfSales.toLocaleString()}</span>
+                    </div>
+                    <div className="p-4 bg-green-50 rounded-xl flex justify-between items-center mt-2 border border-green-100">
+                        <span className="text-green-700 font-bold">Net Profit</span>
+                        <span className="font-extrabold text-green-700 text-xl">₱{lcSummary.salesReport.netSales.toLocaleString()}</span>
+                    </div>
                   </div>
                </div>
              </CardContent>
@@ -526,8 +532,11 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="flex items-center justify-center h-96 text-slate-400">
-      <div className="animate-pulse">Loading dashboard data...</div>
+    <div className="flex items-center justify-center h-screen text-slate-400">
+      <div className="flex flex-col items-center gap-3 animate-pulse">
+        <div className="w-12 h-12 bg-slate-200 rounded-full"></div>
+        <div className="text-sm font-medium">Loading dashboard data...</div>
+      </div>
     </div>
   );
 }
@@ -537,29 +546,30 @@ const tooltipStyle = {
     borderRadius: '12px', 
     border: 'none', 
     boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)'
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    padding: '12px'
 };
 
 // --- SUB-COMPONENTS ---
 function KPICard({ title, value, icon, color }: { title: string, value: string | number, icon: any, color: string }) {
   const colorStyles: any = {
-    blue: { bg: 'bg-blue-50', text: 'text-blue-600' },
-    green: { bg: 'bg-green-50', text: 'text-green-600' },
-    red: { bg: 'bg-red-50', text: 'text-red-600' },
-    amber: { bg: 'bg-amber-50', text: 'text-amber-600' },
-    purple: { bg: 'bg-purple-50', text: 'text-purple-600' },
+    blue: { bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-100' },
+    green: { bg: 'bg-green-50', text: 'text-green-600', border: 'border-green-100' },
+    red: { bg: 'bg-red-50', text: 'text-red-600', border: 'border-red-100' },
+    amber: { bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-100' },
+    purple: { bg: 'bg-purple-50', text: 'text-purple-600', border: 'border-purple-100' },
   };
   const style = colorStyles[color] || colorStyles.blue;
 
   return (
-    <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow flex flex-col justify-between h-32">
+    <div className={`bg-white p-6 rounded-xl shadow-sm border ${style.border} hover:shadow-md transition-all duration-200 flex flex-col justify-between h-36`}>
       <div className="flex justify-between items-start">
-        <p className="text-sm font-medium text-slate-500">{title}</p>
-        <div className={`p-2 rounded-lg ${style.bg} ${style.text}`}>
+        <p className="text-sm font-semibold text-slate-500">{title}</p>
+        <div className={`p-2.5 rounded-xl ${style.bg} ${style.text}`}>
           {icon}
         </div>
       </div>
-      <h3 className="text-2xl font-bold text-slate-800">{value}</h3>
+      <h3 className="text-2xl font-bold text-slate-800 tracking-tight">{value}</h3>
     </div>
   );
 }
@@ -567,9 +577,9 @@ function KPICard({ title, value, icon, color }: { title: string, value: string |
 function KPIMini({ label, value, color }: { label: string, value: number, color: string }) {
   const colors: any = { green: 'text-green-600', red: 'text-red-600', blue: 'text-blue-600' };
   return (
-    <div className="p-3 bg-slate-50 rounded-lg">
-      <p className="text-xs text-slate-500 mb-1">{label}</p>
-      <p className={`text-lg font-bold ${colors[color]}`}>₱{value.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+    <div className="flex flex-col items-center">
+      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">{label}</p>
+      <p className={`text-xl font-bold ${colors[color]}`}>₱{value.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
     </div>
   );
 }
