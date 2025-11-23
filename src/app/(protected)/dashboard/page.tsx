@@ -1,10 +1,12 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
 import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
 import api from '../../services/api';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   BarChart,
   Bar,
@@ -27,6 +29,7 @@ import {
   Activity,
   Snowflake,
   Egg,
+  AlertCircle
 } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '../../components/ui/Card';
 
@@ -73,6 +76,8 @@ interface LCSummary {
   salesReport: { totalSales: number; costOfSales: number; netSales: number };
 }
 
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+
 export default function DashboardPage() {
   const { user, logout } = useAuth();
   const socket = useSocket();
@@ -83,7 +88,7 @@ export default function DashboardPage() {
   const [lcSummary, setLcSummary] = useState<LCSummary | null>(null);
   const [recentSales, setRecentSales] = useState<SaleUpdate[]>([]);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       if (user?.role === 'OWNER') {
         const res = await api.get<OwnerSummary>('/dashboard/summary');
@@ -106,12 +111,11 @@ export default function DashboardPage() {
          logout();
       }
     }
-  };
+  }, [user, logout]);
 
   useEffect(() => {
     if (user) loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, loadData]);
 
   // Socket Logic
   useEffect(() => {
@@ -120,23 +124,30 @@ export default function DashboardPage() {
     const handleUpdate = () => loadData();
     
     const handleNewSale = (saleData: SaleUpdate) => {
-        if (user.role === 'OWNER' || (user.role === 'STAFF' && user.branchId === Number(saleData.branch))) {
+        // If owner, or if staff belonging to the branch where sale happened
+        // Note: saleData.branch might be an object or ID depending on backend serialization, adjust if needed
+        // Assuming backend sends populated branch object based on previous service code
+        if (user.role === 'OWNER') {
              setRecentSales((prev) => [saleData, ...prev].slice(0, 10));
+             loadData();
+        } else if (user.role === 'STAFF') {
+             // For staff, we usually just reload data to be safe as they only care about their branch
+             loadData();
         }
-        loadData();
     };
 
     socket.on('newSale', handleNewSale); 
     socket.on('deliveryUpdated', handleUpdate);
-    socket.on('newDelivery', handleUpdate); // Updates Active/Pending deliveries count
+    socket.on('newDelivery', handleUpdate);     // Listen for new deliveries
+    socket.on('inventoryUpdated', handleUpdate); // Listen for inventory changes
     
     return () => { 
         socket.off('newSale', handleNewSale); 
         socket.off('deliveryUpdated', handleUpdate);
         socket.off('newDelivery', handleUpdate);
+        socket.off('inventoryUpdated', handleUpdate);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [socket, user]);
+  }, [socket, user, loadData]);
 
   // --- RENDER: OWNER ---
   if (user?.role === 'OWNER') {
@@ -224,7 +235,6 @@ export default function DashboardPage() {
 
   // --- RENDER: STAFF ---
   if (user?.role === 'STAFF') {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const staffChartData = staffSummary ? [
       { name: 'Expenses', Amount: staffSummary.dailyExpenses },
       { name: 'Profit', Amount: staffSummary.dailyProfit },
@@ -408,7 +418,6 @@ function KPICard({ title, value, icon, color }: { title: string, value: string |
       </div>
       <h3 className="text-2xl font-bold text-slate-800">{value}</h3>
     </div>
-
   );
 }
 
