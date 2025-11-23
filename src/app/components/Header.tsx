@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
  
@@ -6,7 +5,7 @@
 
 import { useAuth } from '../contexts/AuthContext';
 import { useSocket } from '../contexts/SocketContext';
-import { Bell, User, LogOut, Package, ShoppingCart, Truck, Info } from 'lucide-react';
+import { Bell, User, LogOut, Package, ShoppingCart, Truck, Info, Banknote } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
 // Define the Notification Type
@@ -16,7 +15,7 @@ interface NotificationItem {
   message: string;
   timestamp: Date;
   read: boolean;
-  type: 'sale' | 'delivery' | 'info';
+  type: 'sale' | 'delivery' | 'info' | 'expense';
 }
 
 export default function Header() {
@@ -30,7 +29,7 @@ export default function Header() {
   const notifRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
 
-  // Use Ref to track current user state for WebSocket closures
+  // Track current user ref to avoid stale closures in socket listeners
   const userRef = useRef(user);
   useEffect(() => {
     userRef.current = user;
@@ -53,15 +52,12 @@ export default function Header() {
         }));
         setNotifications(hydrated);
       } catch (e) {
-        console.error("Failed to parse notifications", e);
         setNotifications([]);
       }
-    } else {
-      setNotifications([]);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, user?.role]); 
 
-  // --- 2. Helper to Save to Storage ---
   const saveNotifications = (newNotifs: NotificationItem[]) => {
     const currentUser = userRef.current;
     if (currentUser && typeof window !== 'undefined') {
@@ -70,26 +66,35 @@ export default function Header() {
     }
   };
 
-  // --- 3. Real-time Listeners ---
+  // --- 2. Real-time Listeners ---
   useEffect(() => {
     if (!socket) return;
 
-    // 3a. Handle New Sale
+    // Helper to add notification safely
+    const pushNotification = (notif: NotificationItem) => {
+      setNotifications(prev => {
+        const updated = [notif, ...prev].slice(0, 50); // Keep last 50
+        saveNotifications(updated);
+        return updated;
+      });
+    };
+
+    // 2a. Sales
     const handleNewSale = (sale: any) => {
       const currentUser = userRef.current;
       if (!currentUser) return;
 
       const userBranchId = Number(currentUser.branchId);
-      const saleBranchId = Number(sale.branch?.id);
+      const saleBranchId = Number(sale.branch?.id || sale.branchId);
+      
       const isOwner = currentUser.role === 'OWNER';
-      // Staff: Only see sales from THEIR branch
       const isMyBranch = currentUser.role === 'STAFF' && userBranchId === saleBranchId;
 
       if (isOwner || isMyBranch) {
-        addNotification({
+        pushNotification({
           id: `sale-${Date.now()}-${Math.random()}`,
           title: 'New Sale Recorded',
-          message: `${sale.branch?.name}: ₱${Number(sale.total_amount).toFixed(2)} by ${sale.staff?.username}`,
+          message: `Branch Sale: ₱${Number(sale.total_amount).toFixed(2)}`,
           timestamp: new Date(),
           read: false,
           type: 'sale'
@@ -97,19 +102,19 @@ export default function Header() {
       }
     };
 
-    // 3b. Handle Delivery Updates (Status Change)
+    // 2b. Delivery Updates
     const handleDeliveryUpdate = (delivery: any) => {
       const currentUser = userRef.current;
       if (!currentUser) return;
 
       const userBranchId = Number(currentUser.branchId);
       const deliveryBranchId = Number(delivery.branch?.id || delivery.branchId);
+      
       const isOwner = currentUser.role === 'OWNER';
-      // Staff: Only see updates for THEIR branch
       const isMyBranch = currentUser.role === 'STAFF' && userBranchId === deliveryBranchId;
 
       if (isOwner || isMyBranch) {
-        addNotification({
+        pushNotification({
           id: `del-upd-${Date.now()}-${Math.random()}`,
           title: 'Delivery Update',
           message: `Delivery #${delivery.id} is now ${delivery.status}`,
@@ -120,30 +125,31 @@ export default function Header() {
       }
     };
 
-    // 3c. Handle New Delivery Created (Dispatch)
+    // 2c. New Delivery
     const handleNewDelivery = (delivery: any) => {
       const currentUser = userRef.current;
       if (!currentUser) return;
 
       const userBranchId = Number(currentUser.branchId);
       const deliveryBranchId = Number(delivery.branch?.id || delivery.branchId);
+      
       const isOwner = currentUser.role === 'OWNER';
       const isMyBranch = currentUser.role === 'STAFF' && userBranchId === deliveryBranchId;
 
       if (isOwner) {
-        addNotification({
+        pushNotification({
           id: `del-new-${Date.now()}-${Math.random()}`,
           title: 'Delivery Dispatched',
-          message: `New delivery #${delivery.id} created for ${delivery.branch?.name || 'Branch'}`,
+          message: `Delivery #${delivery.id} created successfully.`,
           timestamp: new Date(),
           read: false,
           type: 'delivery'
         });
       } else if (isMyBranch) {
-        addNotification({
+        pushNotification({
           id: `del-new-${Date.now()}-${Math.random()}`,
           title: 'Incoming Delivery',
-          message: `Headquarters sent a new delivery #${delivery.id}. Please wait for arrival.`,
+          message: `Headquarters sent delivery #${delivery.id}.`,
           timestamp: new Date(),
           read: false,
           type: 'delivery'
@@ -151,17 +157,14 @@ export default function Header() {
       }
     };
 
-    // 3d. Handle Inventory Changes (Master Inventory)
+    // 2d. Inventory Changes (Master)
     const handleInventoryUpdate = (data: any) => {
       const currentUser = userRef.current;
-      if (!currentUser) return;
-
-      // Only Owner cares about Master Inventory changes
-      if (currentUser.role === 'OWNER') {
-        addNotification({
+      if (currentUser?.role === 'OWNER') {
+        pushNotification({
           id: `inv-${Date.now()}-${Math.random()}`,
           title: 'Inventory Updated',
-          message: `Master Inventory item ${data.type}d successfully.`,
+          message: `Master Inventory: Item ${data.type}d.`,
           timestamp: new Date(),
           read: false,
           type: 'info'
@@ -169,31 +172,44 @@ export default function Header() {
       }
     };
 
-    // Helper to add and save
-    const addNotification = (item: NotificationItem) => {
-      setNotifications(prev => {
-        const updated = [item, ...prev].slice(0, 50); // Keep last 50
-        saveNotifications(updated);
-        return updated;
-      });
+    // 2e. New Expense (NEW)
+    const handleNewExpense = (expense: any) => {
+      const currentUser = userRef.current;
+      if (!currentUser) return;
+
+      const userBranchId = Number(currentUser.branchId);
+      const expBranchId = Number(expense.branchId);
+      
+      const isOwner = currentUser.role === 'OWNER';
+      const isMyBranch = currentUser.role === 'STAFF' && userBranchId === expBranchId;
+
+      if (isOwner || isMyBranch) {
+        pushNotification({
+          id: `exp-${Date.now()}-${Math.random()}`,
+          title: 'Expense Recorded',
+          message: `${expense.category}: ₱${Number(expense.amount).toFixed(2)} - ${expense.description || 'No desc'}`,
+          timestamp: new Date(),
+          read: false,
+          type: 'expense'
+        });
+      }
     };
 
-    // Attach Listeners
     socket.on('newSale', handleNewSale);
     socket.on('deliveryUpdated', handleDeliveryUpdate);
     socket.on('newDelivery', handleNewDelivery);
     socket.on('inventoryUpdated', handleInventoryUpdate);
+    socket.on('newExpense', handleNewExpense); // <--- Listen for Expenses
 
-    // Detach Listeners
     return () => {
       socket.off('newSale', handleNewSale);
       socket.off('deliveryUpdated', handleDeliveryUpdate);
       socket.off('newDelivery', handleNewDelivery);
       socket.off('inventoryUpdated', handleInventoryUpdate);
+      socket.off('newExpense', handleNewExpense);
     };
   }, [socket]);
 
-  // --- UI Actions ---
   const markAllRead = () => {
     const updated = notifications.map(n => ({ ...n, read: true }));
     setNotifications(updated);
@@ -204,6 +220,8 @@ export default function Header() {
     setNotifications([]);
     saveNotifications([]);
   };
+
+  const unreadCount = notifications.filter(n => !n.read).length;
 
   // Click outside handler
   useEffect(() => {
@@ -218,8 +236,6 @@ export default function Header() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
-  const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
     <header className="bg-white h-16 border-b border-slate-200 sticky top-0 z-30 flex items-center justify-between px-6 shadow-sm">
@@ -264,10 +280,12 @@ export default function Header() {
                       <div className={`mt-1 p-2 rounded-full h-fit shrink-0 ${
                         notif.type === 'sale' ? 'bg-green-100 text-green-600' : 
                         notif.type === 'delivery' ? 'bg-amber-100 text-amber-600' :
+                        notif.type === 'expense' ? 'bg-red-100 text-red-600' :
                         'bg-slate-100 text-slate-600'
                       }`}>
                         {notif.type === 'sale' && <ShoppingCart className="w-4 h-4" />}
                         {notif.type === 'delivery' && <Truck className="w-4 h-4" />}
+                        {notif.type === 'expense' && <Banknote className="w-4 h-4" />}
                         {notif.type === 'info' && <Info className="w-4 h-4" />}
                       </div>
                       <div className="flex-1 min-w-0">
