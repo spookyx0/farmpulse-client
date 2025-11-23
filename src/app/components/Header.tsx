@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
  
@@ -55,7 +56,6 @@ export default function Header() {
         setNotifications([]);
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, user?.role]); 
 
   const saveNotifications = (newNotifs: NotificationItem[]) => {
@@ -102,7 +102,7 @@ export default function Header() {
       }
     };
 
-    // 2b. Delivery Updates
+    // 2b. Delivery Updates (FIXED: Explicit updates for Owner)
     const handleDeliveryUpdate = (delivery: any) => {
       const currentUser = userRef.current;
       if (!currentUser) return;
@@ -114,10 +114,18 @@ export default function Header() {
       const isMyBranch = currentUser.role === 'STAFF' && userBranchId === deliveryBranchId;
 
       if (isOwner || isMyBranch) {
+        // Format message based on role
+        const branchName = delivery.branch?.name ? ` to ${delivery.branch.name}` : '';
+        const statusMsg = delivery.status === 'DELIVERED' ? 'has been RECEIVED' : `is now ${delivery.status}`;
+        
+        const message = isOwner 
+            ? `Shipment #${delivery.id}${branchName} ${statusMsg}.`
+            : `Delivery #${delivery.id} update: ${delivery.status}`;
+
         pushNotification({
           id: `del-upd-${Date.now()}-${Math.random()}`,
-          title: 'Delivery Update',
-          message: `Delivery #${delivery.id} is now ${delivery.status}`,
+          title: 'Shipment Update',
+          message: message,
           timestamp: new Date(),
           read: false,
           type: 'delivery'
@@ -140,7 +148,7 @@ export default function Header() {
         pushNotification({
           id: `del-new-${Date.now()}-${Math.random()}`,
           title: 'Delivery Dispatched',
-          message: `Delivery #${delivery.id} created successfully.`,
+          message: `Delivery #${delivery.id} created successfully for ${delivery.branch?.name || 'Branch'}.`,
           timestamp: new Date(),
           read: false,
           type: 'delivery'
@@ -149,7 +157,7 @@ export default function Header() {
         pushNotification({
           id: `del-new-${Date.now()}-${Math.random()}`,
           title: 'Incoming Delivery',
-          message: `Headquarters sent delivery #${delivery.id}.`,
+          message: `Headquarters sent delivery #${delivery.id}. Check Deliveries tab.`,
           timestamp: new Date(),
           read: false,
           type: 'delivery'
@@ -164,7 +172,7 @@ export default function Header() {
         pushNotification({
           id: `inv-${Date.now()}-${Math.random()}`,
           title: 'Inventory Updated',
-          message: `Master Inventory: Item ${data.type}d.`,
+          message: `Master Inventory: Item ${data.type}d successfully.`,
           timestamp: new Date(),
           read: false,
           type: 'info'
@@ -172,7 +180,7 @@ export default function Header() {
       }
     };
 
-    // 2e. New Expense (NEW)
+    // 2e. New Expense
     const handleNewExpense = (expense: any) => {
       const currentUser = userRef.current;
       if (!currentUser) return;
@@ -199,7 +207,7 @@ export default function Header() {
     socket.on('deliveryUpdated', handleDeliveryUpdate);
     socket.on('newDelivery', handleNewDelivery);
     socket.on('inventoryUpdated', handleInventoryUpdate);
-    socket.on('newExpense', handleNewExpense); // <--- Listen for Expenses
+    socket.on('newExpense', handleNewExpense);
 
     return () => {
       socket.off('newSale', handleNewSale);
