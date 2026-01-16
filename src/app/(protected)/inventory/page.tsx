@@ -11,7 +11,7 @@ import { useForm } from 'react-hook-form';
 import { Card, CardContent, CardHeader } from '../../components/ui/Card';
 import { Modal } from '../../components/ui/Modal';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
-import { Package, Plus, RefreshCw, Tag, Calendar, Layers, User, Filter, Pencil, Trash2 } from 'lucide-react';
+import { Package, Plus, RefreshCw, Tag, Calendar, Layers, User, Filter, Pencil, Trash2, Search } from 'lucide-react';
 
 // --- Types ---
 interface InventoryItem {
@@ -46,6 +46,7 @@ export default function InventoryPage() {
   const { showToast } = useToast();
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [refresh, setRefresh] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   
   // Filter & Modal States
   const [filterCategory, setFilterCategory] = useState<'ALL' | 'FROZEN_ITEM' | 'CHICKEN_PART'>('ALL');
@@ -150,14 +151,18 @@ export default function InventoryPage() {
 
   // Filter Logic
   const filteredInventory = inventory.filter((item) => {
-    if (filterCategory === 'ALL') return true;
-    return item.product?.category === filterCategory;
+    const matchesCategory = filterCategory === 'ALL' || item.product?.category === filterCategory;
+    const term = searchTerm.toLowerCase();
+    const matchesSearch = !searchTerm || 
+      item.product?.name?.toLowerCase().includes(term) ||
+      item.productId.toString().includes(term);
+    return matchesCategory && matchesSearch;
   });
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex justify-between items-center">
+    <div className="w-full space-y-6">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-6 rounded-xl shadow-sm border border-slate-100">
         <div>
           <h1 className="text-3xl font-bold text-slate-800 flex items-center gap-2">
             <Package className="w-8 h-8 text-green-600" />
@@ -165,155 +170,182 @@ export default function InventoryPage() {
           </h1>
           <p className="text-slate-500 mt-1">Manage products, prices, and stock levels.</p>
         </div>
-        <button 
-          onClick={() => setRefresh(!refresh)} 
-          className="p-2 text-slate-400 hover:text-green-600 transition-colors rounded-full hover:bg-green-50"
-          title="Refresh Data"
-        >
-          <RefreshCw className="w-5 h-5" />
-        </button>
+        <div className="flex gap-3">
+           <div className="text-right hidden md:block">
+              <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Total Items</p>
+              <p className="text-2xl font-bold text-slate-800">{inventory.length}</p>
+           </div>
+           <button 
+            onClick={() => setRefresh(!refresh)} 
+            className="p-2 text-slate-400 hover:text-green-600 transition-colors rounded-full hover:bg-green-50 self-center"
+            title="Refresh Data"
+          >
+            <RefreshCw className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
-      {/* Add Stock Form (Owner Only) */}
-      {user?.role === 'OWNER' && (
-        <Card className="border-l-4 border-l-green-500">
-          <CardHeader title="Add Items to Inventory" subtitle="Register new products or add stock to existing ones." />
-          <CardContent>
-            <form onSubmit={handleSubmit(onAddStock)} className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
-              
-              {/* Date */}
-              <div className="md:col-span-1">
-                <label className="block text-xs font-medium text-slate-500 mb-1">Date</label>
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                  <input 
-                    {...register('date', { required: true })} 
-                    type="date" 
-                    className="pl-9 w-full border-slate-300 rounded-lg text-sm focus:ring-green-500 focus:border-green-500" 
-                  />
-                </div>
-              </div>
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+        
+        {/* LEFT COLUMN: Add Stock Form (Owner Only) */}
+        {user?.role === 'OWNER' && (
+          <div className="xl:col-span-4 space-y-6">
+            <Card className="border-t-4 border-t-green-600 shadow-lg sticky top-6">
+              <CardHeader title="Add New Item" subtitle="Register stock." />
+              <CardContent>
+                <form onSubmit={handleSubmit(onAddStock)} className="space-y-4">
+                  
+                  {/* Date */}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Date</label>
+                    <div className="relative">
+                      <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                      <input 
+                        {...register('date', { required: true })} 
+                        type="date" 
+                        className="pl-9 w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500 outline-none" 
+                      />
+                    </div>
+                  </div>
 
-              {/* Supplier */}
-              <div className="md:col-span-1">
-                <label className="block text-xs font-medium text-slate-500 mb-1">Supplier</label>
-                <div className="relative">
-                  <User className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                  <input 
-                    {...register('supplier')} 
-                    type="text" 
-                    className="pl-9 w-full border-slate-300 rounded-lg text-sm focus:ring-green-500 focus:border-green-500" 
-                    placeholder="Supplier Name" 
-                  />
-                </div>
-              </div>
+                  {/* Supplier */}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Supplier</label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                      <input 
+                        {...register('supplier')} 
+                        type="text" 
+                        className="pl-9 w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500 outline-none" 
+                        placeholder="Supplier Name" 
+                      />
+                    </div>
+                  </div>
 
-              {/* Product Name */}
-              <div className="md:col-span-2">
-                <label className="block text-xs font-medium text-slate-500 mb-1">Product Name</label>
-                <div className="relative">
-                  <Tag className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                  <input 
-                    {...register('productName', { required: true })} 
-                    type="text" 
-                    className="pl-9 w-full border-slate-300 rounded-lg text-sm focus:ring-green-500 focus:border-green-500" 
-                    placeholder="e.g. Whole Chicken, Hotdogs" 
-                  />
-                </div>
-              </div>
+                  {/* Product Name */}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Product Name</label>
+                    <div className="relative">
+                      <Tag className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                      <input 
+                        {...register('productName', { required: true })} 
+                        type="text" 
+                        className="pl-9 w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500 outline-none" 
+                        placeholder="e.g. Whole Chicken" 
+                      />
+                    </div>
+                  </div>
 
-              {/* Category */}
-              <div className="md:col-span-1">
-                <label className="block text-xs font-medium text-slate-500 mb-1">Category</label>
-                <div className="relative">
-                  <Layers className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                  <select 
-                    {...register('category', { required: true })} 
-                    className="pl-9 w-full border-slate-300 rounded-lg text-sm focus:ring-green-500 focus:border-green-500 bg-white"
+                  {/* Category */}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Category</label>
+                    <div className="relative">
+                      <Layers className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                      <select 
+                        {...register('category', { required: true })} 
+                        className="pl-9 w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500 outline-none appearance-none"
+                      >
+                        <option value="FROZEN_ITEM">Frozen Items</option>
+                        <option value="CHICKEN_PART">Chicken Parts</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Quantity / Kilos */}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1 transition-all">
+                      {quantityLabel}
+                    </label>
+                    <input 
+                      {...register('quantity', { required: true })} 
+                      type="number" 
+                      step="0.01" 
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500 outline-none" 
+                      placeholder="0.00" 
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Purchase Price */}
+                    <div>
+                      <label className="block text-xs font-medium text-slate-500 mb-1">Purchase Price</label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-2.5 text-slate-400 font-sans">₱</span>
+                        <input 
+                          {...register('purchase_price', { required: true })} 
+                          type="number" 
+                          step="0.01" 
+                          className="pl-7 w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500 outline-none" 
+                          placeholder="0.00" 
+                        />
+                      </div>
+                    </div>
+
+                    {/* Selling Price */}
+                    <div>
+                      <label className="block text-xs font-medium text-slate-500 mb-1">Selling Price</label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-2.5 text-slate-400 font-sans">₱</span>
+                        <input 
+                          {...register('selling_price', { required: true })} 
+                          type="number" 
+                          step="0.01" 
+                          className="pl-7 w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500 outline-none" 
+                          placeholder="0.00" 
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <button 
+                    type="submit" 
+                    className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white py-3 rounded-xl shadow-lg shadow-green-200 transition-all transform active:scale-95 text-sm font-bold mt-2"
                   >
-                    <option value="FROZEN_ITEM">Frozen Items</option>
-                    <option value="CHICKEN_PART">Chicken Parts</option>
-                  </select>
-                </div>
-              </div>
+                    <Plus className="w-4 h-4" /> Add to Inventory
+                  </button>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
-              {/* Quantity / Kilos (Dynamic Label) */}
-              <div className="md:col-span-1">
-                <label className="block text-xs font-medium text-slate-500 mb-1 transition-all">
-                  {quantityLabel}
-                </label>
+        {/* RIGHT COLUMN: Inventory List */}
+        <div className={`${user?.role === 'OWNER' ? 'xl:col-span-8' : 'xl:col-span-12'} space-y-6`}>
+          <Card className="h-[calc(100vh-240px)] min-h-[500px] shadow-md flex flex-col">
+            <CardHeader title="Inventory List" subtitle="Current stock levels." />
+            
+            {/* Search & Filter Bar */}
+            <div className="px-6 pb-4 flex flex-col sm:flex-row gap-4 justify-between items-center">
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input 
-                  {...register('quantity', { required: true })} 
-                  type="number" 
-                  step="0.01" 
-                  className="w-full border-slate-300 rounded-lg text-sm focus:ring-green-500 focus:border-green-500" 
-                  placeholder="0.00" 
+                  type="text" 
+                  placeholder="Search products..." 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all"
                 />
               </div>
 
-              {/* Purchase Price */}
-              <div className="md:col-span-1">
-                <label className="block text-xs font-medium text-slate-500 mb-1">Purchase Price</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-2 text-slate-400 font-sans">₱</span>
-                  <input 
-                    {...register('purchase_price', { required: true })} 
-                    type="number" 
-                    step="0.01" 
-                    className="pl-7 w-full border-slate-300 rounded-lg text-sm focus:ring-green-500 focus:border-green-500" 
-                    placeholder="0.00" 
-                  />
-                </div>
+              <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
+                <Filter className="w-4 h-4 text-slate-400 hidden sm:block" />
+                {['ALL', 'FROZEN_ITEM', 'CHICKEN_PART'].map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setFilterCategory(cat as any)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
+                      filterCategory === cat ? 'bg-slate-800 text-white shadow-md' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                    }`}
+                  >
+                    {cat === 'ALL' ? 'All' : cat.replace('_', ' ')}
+                  </button>
+                ))}
               </div>
+            </div>
 
-              {/* Selling Price */}
-              <div className="md:col-span-1">
-                <label className="block text-xs font-medium text-slate-500 mb-1">Selling Price</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-2 text-slate-400 font-sans">₱</span>
-                  <input 
-                    {...register('selling_price', { required: true })} 
-                    type="number" 
-                    step="0.01" 
-                    className="pl-7 w-full border-slate-300 rounded-lg text-sm focus:ring-green-500 focus:border-green-500" 
-                    placeholder="0.00" 
-                  />
-                </div>
-              </div>
-
-              <button 
-                type="submit" 
-                className="flex items-center justify-center gap-2 bg-green-600 text-white py-2.5 px-4 rounded-lg hover:bg-green-700 transition-colors text-sm font-medium shadow-sm col-span-1 md:col-span-4 mt-2"
-              >
-                <Plus className="w-4 h-4" /> Add to Inventory
-              </button>
-            </form>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Filter Tabs */}
-      <div className="flex items-center gap-3 pb-2">
-        <Filter className="w-5 h-5 text-slate-400" />
-        <span className="text-sm font-medium text-slate-600 mr-2">Filter:</span>
-        {['ALL', 'FROZEN_ITEM', 'CHICKEN_PART'].map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setFilterCategory(cat as any)}
-            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
-              filterCategory === cat ? 'bg-slate-800 text-white shadow-md' : 'bg-white text-slate-500 hover:bg-slate-100 border border-slate-200'
-            }`}
-          >
-            {cat === 'ALL' ? 'All' : cat.replace('_', ' ')}
-          </button>
-        ))}
-      </div>
-
-      {/* Inventory Table */}
-      <Card>
-        <div className="overflow-x-auto">
+            <div className="overflow-auto flex-1">
           <table className="w-full text-left text-sm text-slate-600">
-            <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase font-semibold text-slate-500">
+            <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase font-semibold text-slate-500 sticky top-0 z-10">
               <tr>
                 <th className="px-6 py-4">Product Name</th>
                 <th className="px-6 py-4">Category</th>
@@ -398,8 +430,10 @@ export default function InventoryPage() {
               )}
             </tbody>
           </table>
+            </div>
+          </Card>
         </div>
-      </Card>
+      </div>
 
       {/* Edit Modal */}
       <Modal isOpen={!!editingItem} onClose={() => setEditingItem(null)} title="Edit Inventory Item">
