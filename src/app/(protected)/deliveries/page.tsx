@@ -21,7 +21,8 @@ import {
   Package, 
   Layers, 
   AlertCircle,
-  ArrowRight
+  ArrowRight,
+  Search
 } from 'lucide-react';
 
 // --- Types ---
@@ -50,6 +51,7 @@ export default function DeliveriesPage() {
   
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]); 
+  const [searchTerm, setSearchTerm] = useState('');
   
   const [confirmId, setConfirmId] = useState<number | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -141,6 +143,16 @@ export default function DeliveriesPage() {
         setIsProcessing(false);
     }
   };
+
+  const filteredDeliveries = deliveries.filter((delivery) => {
+    const term = searchTerm.toLowerCase();
+    return (
+      delivery.id.toString().includes(term) ||
+      delivery.branch?.name.toLowerCase().includes(term) ||
+      delivery.status.toLowerCase().includes(term) ||
+      delivery.items.some((item) => item.product?.name.toLowerCase().includes(term))
+    );
+  });
 
   return (
     <div className="w-full space-y-6">
@@ -267,14 +279,26 @@ export default function DeliveriesPage() {
 
         {/* RIGHT COLUMN: Delivery History - Takes 7/12 width on large screens */}
         <div className={`${user?.role === 'OWNER' ? 'xl:col-span-7' : 'xl:col-span-12'} space-y-6`}>
-           <Card className="h-full shadow-md">
+           <Card className="h-[calc(100vh-240px)] min-h-[500px] shadow-md flex flex-col">
               <CardHeader 
                 title="Recent Shipments" 
                 subtitle={user?.role === 'OWNER' ? "Tracking all outbound logistics." : "Incoming shipments for your branch."} 
               />
-              <div className="overflow-x-auto">
+              <div className="px-6 pb-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input 
+                    type="text" 
+                    placeholder="Search by ID, Branch, Status or Product..." 
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                  />
+                </div>
+              </div>
+              <div className="overflow-auto flex-1">
                   <table className="w-full text-left text-sm text-slate-600">
-                      <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase font-semibold text-slate-500">
+                      <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase font-semibold text-slate-500 sticky top-0 z-10">
                           <tr>
                               <th className="px-6 py-4">ID & Date</th>
                               <th className="px-6 py-4">Details</th>
@@ -282,7 +306,7 @@ export default function DeliveriesPage() {
                           </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
-                          {deliveries.map((delivery) => (
+                          {filteredDeliveries.map((delivery) => (
                               <tr key={delivery.id} className="group hover:bg-slate-50 transition-colors">
                                   {/* ID & Date Column */}
                                   <td className="px-6 py-5 align-top">
@@ -325,14 +349,14 @@ export default function DeliveriesPage() {
                                   </td>
                               </tr>
                           ))}
-                          {deliveries.length === 0 && (
+                          {filteredDeliveries.length === 0 && (
                               <tr>
                                   <td colSpan={3} className="px-6 py-12 text-center text-slate-400 bg-slate-50/30">
                                       <div className="flex flex-col items-center">
                                         <div className="bg-slate-100 p-4 rounded-full mb-3">
                                            <Truck className="w-8 h-8 text-slate-300" />
                                         </div>
-                                        <p>No delivery records found.</p>
+                                        <p>{searchTerm ? 'No matching shipments found.' : 'No delivery records found.'}</p>
                                       </div>
                                   </td>
                               </tr>
