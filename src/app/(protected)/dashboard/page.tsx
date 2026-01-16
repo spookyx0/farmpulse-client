@@ -187,9 +187,9 @@ export default function DashboardPage() {
           <KPICard title="Active Deliveries" value={ownerSummary?.pendingDeliveries || 0} icon={<Truck className="w-5 h-5" />} color="purple" />
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 mt-8">
           {/* Revenue Source Bar Chart (4 cols) */}
-          <Card className="xl:col-span-4 h-[450px]">
+          <Card className="xl:col-span-4 h-[530px]">
             <CardHeader title="Revenue by Source" subtitle="Comparison of business units" />
             <div className="h-full p-4 pb-12">
               <ResponsiveContainer width="100%" height="100%">
@@ -205,7 +205,7 @@ export default function DashboardPage() {
           </Card>
 
           {/* Income Distribution Pie Chart (3 cols) */}
-          <Card className="xl:col-span-3 h-[450px]">
+          <Card className="xl:col-span-3 h-[530px]">
              <CardHeader title="Income Distribution" subtitle="Sales composition" />
              <div className="h-full p-4 pb-8 flex flex-col items-center justify-center">
                <ResponsiveContainer width="100%" height="100%">
@@ -236,7 +236,7 @@ export default function DashboardPage() {
           </Card>
 
           {/* Live Feed (5 cols) */}
-          <Card className="xl:col-span-5 h-[450px] flex flex-col">
+          <Card className="xl:col-span-5 h-[530px] flex flex-col">
             <div className="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
                <div>
                  <h3 className="text-lg font-bold text-slate-800">Live Transactions</h3>
@@ -311,7 +311,7 @@ export default function DashboardPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
            {/* Recent Sales List (2 cols) */}
-           <Card className="lg:col-span-2 h-[500px] flex flex-col">
+           <Card className="lg:col-span-2 h-[525px] flex flex-col">
               <CardHeader title="Today's Transactions" subtitle="Recent sales recorded at this branch" />
               <div className="flex-1 overflow-y-auto p-0 custom-scrollbar">
                 {recentSales.length > 0 ? (
