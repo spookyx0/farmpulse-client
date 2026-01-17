@@ -64,7 +64,7 @@ export default function Sidebar() {
       {/* Minimal Logo Header */}
       <div className="h-16 flex items-center px-6 border-b border-slate-800 bg-slate-450">
         <h2 className="text-xl font-bold text-white tracking-wide flex items-center gap-2">
-          <span className="text-green-500 text-2xl">❖</span> FarmPulse
+          <span className="text-green-500 ml-5 text-2xl"></span> LSB Store
         </h2>
       </div>
 
@@ -99,8 +99,8 @@ export default function Sidebar() {
 
       {/* Minimal Footer (Version Info) */}
       <div className="p-4 border-t border-slate-800 text-center text-xs text-slate-600">
-        <p>FarmPulse System v1.0</p>
-        <p className="mt-1">© 2025</p>
+        <p>LSB Store System</p>
+        <p className="mt-1">© 2026</p>
       </div>
     </nav>
   );
