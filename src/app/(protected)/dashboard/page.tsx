@@ -189,25 +189,76 @@ export default function DashboardPage() {
 
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 mt-8">
           {/* Revenue Source Bar Chart (4 cols) */}
-          <Card className="xl:col-span-4 h-[530px]">
-            <CardHeader title="Revenue by Source" subtitle="Comparison of business units" />
-            <div className="h-full p-4 pb-12">
+          <Card className="xl:col-span-4 h-[530px] flex flex-col overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-start bg-white">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800">Revenue by Source</h3>
+                <p className="text-sm text-slate-500 mt-1">Performance across business units</p>
+              </div>
+              <div className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-xs font-bold border border-indigo-100">
+                FY {new Date().getFullYear()}
+              </div>
+            </div>
+            <div className="flex-1 p-6 min-h-0 bg-white">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={barData}>
+                <BarChart data={barData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} dy={10} />
-                  <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} tickFormatter={(val) => `₱${val/1000}k`} />
-                  <Tooltip cursor={{fill: '#f8fafc'}} contentStyle={tooltipStyle} />
-                  <Bar dataKey="Sales" fill="#4f46e5" radius={[6, 6, 0, 0]} barSize={50} />
+                  <XAxis 
+                    dataKey="name" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{fill: '#64748b', fontSize: 12, fontWeight: 500}} 
+                    dy={10} 
+                  />
+                  <YAxis 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{fill: '#94a3b8', fontSize: 11}} 
+                    tickFormatter={(val) => `₱${(val/1000).toFixed(0)}k`} 
+                  />
+                  <Tooltip 
+                    cursor={{fill: '#f8fafc', opacity: 0.8}}
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="bg-white p-4 border border-slate-100 shadow-xl rounded-xl ring-1 ring-black/5">
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">{label}</p>
+                            <p className="text-xl font-bold text-slate-800">
+                              ₱{Number(payload[0].value).toLocaleString()}
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Bar 
+                    dataKey="Sales" 
+                    radius={[6, 6, 0, 0]} 
+                    barSize={50}
+                    animationDuration={1000}
+                  >
+                    {barData.map((entry, index) => (
+                       <Cell key={`cell-${index}`} fill={['#4f46e5', '#0ea5e9', '#f59e0b'][index % 3]} />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </Card>
 
           {/* Income Distribution Pie Chart (3 cols) */}
-          <Card className="xl:col-span-3 h-[530px]">
-             <CardHeader title="Income Distribution" subtitle="Sales composition" />
-             <div className="h-full p-4 pb-8 flex flex-col items-center justify-center">
+          <Card className="xl:col-span-3 h-[530px] flex flex-col overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+             <div className="p-6 border-b border-slate-100 flex justify-between items-start bg-white">
+               <div>
+                 <h3 className="text-lg font-bold text-slate-800">Income Distribution</h3>
+                 <p className="text-sm text-slate-500 mt-1">Sales composition</p>
+               </div>
+               <div className="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full text-xs font-bold border border-emerald-100">
+                 Live
+               </div>
+             </div>
+             <div className="flex-1 p-6 min-h-0 bg-white relative">
                <ResponsiveContainer width="100%" height="100%">
                  <PieChart>
                    <Pie 
@@ -219,17 +270,42 @@ export default function DashboardPage() {
                     dataKey="value"
                   >
                      {pieData.map((entry, index) => (
-                       <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                       <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} strokeWidth={0} />
                      ))}
                    </Pie>
-                   <Tooltip contentStyle={tooltipStyle} />
-                   <Legend verticalAlign="bottom" height={36} />
+                   <Tooltip 
+                    cursor={{fill: 'transparent'}}
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        return (
+                          <div className="bg-white p-3 border border-slate-100 shadow-xl rounded-xl ring-1 ring-black/5">
+                            <div className="flex items-center gap-2 mb-1">
+                              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: payload[0].color }}></div>
+                              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">{data.name}</p>
+                            </div>
+                            <p className="text-lg font-bold text-slate-800">
+                              ₱{Number(data.value).toLocaleString()}
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                   />
+                   <Legend 
+                    verticalAlign="bottom" 
+                    height={36} 
+                    iconType="circle"
+                    formatter={(value) => <span className="text-slate-600 font-medium ml-1">{value}</span>}
+                   />
                  </PieChart>
                </ResponsiveContainer>
-               <div className="text-center -mt-4">
-                 <p className="text-sm text-slate-400">Dominant Source</p>
-                 <p className="text-lg font-bold text-slate-800">
-                   {pieData.sort((a,b) => b.value - a.value)[0]?.name || 'N/A'}
+               
+               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-8">
+                 <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Top Source</p>
+                 <p className="text-lg font-bold text-slate-800 mt-1">
+                   {[...pieData].sort((a,b) => b.value - a.value)[0]?.name || 'N/A'}
                  </p>
                </div>
              </div>
