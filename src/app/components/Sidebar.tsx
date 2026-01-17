@@ -1,6 +1,7 @@
 "use client";
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useAuth } from '../contexts/AuthContext';
 import { usePathname } from 'next/navigation';
 import { 
@@ -63,8 +64,8 @@ export default function Sidebar() {
     <nav className="w-full h-full bg-slate-900 text-slate-300 flex flex-col shadow-xl border-r border-slate-800">
       {/* Minimal Logo Header */}
       <div className="h-16 flex items-center px-6 border-b border-slate-800 bg-slate-450">
-        <h2 className="text-xl font-bold text-white tracking-wide flex items-center gap-2">
-          <span className="text-green-500 ml-5 text-2xl"></span> LSB Store
+        <h2 className="text-xl font-bold text-white tracking-wide flex items-center gap-4">
+          <Image src="/LSBLogo.png" alt="LSB Logo" width={32} height={32} /> LSB Store
         </h2>
       </div>
 
