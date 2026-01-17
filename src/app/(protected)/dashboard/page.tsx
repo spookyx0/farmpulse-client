@@ -5,6 +5,7 @@
 
 import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
+import { useToast } from '../../contexts/ToastContext';
 import api from '../../services/api';
 import { useEffect, useState, useCallback } from 'react';
 import {
@@ -33,7 +34,9 @@ import {
   AlertCircle,
   ArrowUpRight,
   Wallet,
-  Clock
+  Clock,
+  RefreshCw,
+  Loader2
 } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '../../components/ui/Card';
 
@@ -85,6 +88,7 @@ const PIE_COLORS = ['#6366f1', '#3b82f6', '#0ea5e9', '#bae6fd'];
 
 export default function DashboardPage() {
   const { user, logout } = useAuth();
+  const { showToast } = useToast();
   const socket = useSocket();
   
   const [ownerSummary, setOwnerSummary] = useState<OwnerSummary | null>(null);
@@ -92,8 +96,10 @@ export default function DashboardPage() {
   const [fvSummary, setFvSummary] = useState<FVSummary | null>(null);
   const [lcSummary, setLcSummary] = useState<LCSummary | null>(null);
   const [recentSales, setRecentSales] = useState<SaleUpdate[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const loadData = useCallback(async () => {
+    setIsRefreshing(true);
     try {
       if (user?.role === 'OWNER') {
         const res = await api.get<OwnerSummary>('/dashboard/summary');
@@ -115,8 +121,15 @@ export default function DashboardPage() {
       if (err instanceof AxiosError && err.response?.status === 403) {
          logout();
       }
+    } finally {
+      setIsRefreshing(false);
     }
   }, [user, logout]);
+
+  const handleManualRefresh = async () => {
+    await loadData();
+    showToast('Dashboard updated.', 'success');
+  };
 
   useEffect(() => {
     if (user) loadData();
@@ -173,8 +186,18 @@ export default function DashboardPage() {
                System Status: Operational
             </p>
           </div>
-          <div className="bg-slate-50 px-4 py-2 rounded-lg border border-slate-200 text-sm text-slate-600 font-medium flex items-center gap-2">
-            <Clock className="w-4 h-4" /> {new Date().toLocaleDateString()}
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={handleManualRefresh} 
+              disabled={isRefreshing}
+              className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-lg border border-slate-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Refresh Data"
+            >
+              {isRefreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            </button>
+            <div className="bg-slate-50 px-4 py-2 rounded-lg border border-slate-200 text-sm text-slate-600 font-medium flex items-center gap-2">
+              <Clock className="w-4 h-4" /> {new Date().toLocaleDateString()}
+            </div>
           </div>
         </div>
 
@@ -374,9 +397,19 @@ export default function DashboardPage() {
               Overview for {new Date().toLocaleDateString(undefined, {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'})}
             </p>
           </div>
-          <div className="bg-slate-50 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium border border-slate-200 flex items-center gap-2">
-            <Truck className="w-4 h-4 text-slate-400" />
-            Branch ID: {user.branchId}
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={handleManualRefresh} 
+              disabled={isRefreshing}
+              className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-lg border border-slate-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Refresh Data"
+            >
+              {isRefreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            </button>
+            <div className="bg-slate-50 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium border border-slate-200 flex items-center gap-2">
+              <Truck className="w-4 h-4 text-slate-400" />
+              Branch ID: {user.branchId}
+            </div>
           </div>
         </div>
 
@@ -389,9 +422,17 @@ export default function DashboardPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
            {/* Recent Sales List (2 cols) */}
-           <Card className="lg:col-span-2 h-[525px] flex flex-col">
-              <CardHeader title="Today's Transactions" subtitle="Recent sales recorded at this branch" />
-              <div className="flex-1 overflow-y-auto p-0 custom-scrollbar">
+           <Card className="lg:col-span-2 h-[525px] flex flex-col overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+              <div className="p-6 border-b border-slate-100 flex justify-between items-start bg-white">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-800">Today&apos;s Transactions</h3>
+                  <p className="text-sm text-slate-500 mt-1">Recent sales recorded at this branch</p>
+                </div>
+                <div className="bg-green-50 text-green-600 px-3 py-1 rounded-full text-xs font-bold border border-green-100 flex items-center gap-2">
+                  <Activity className="w-3 h-3" /> Live
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto p-0 custom-scrollbar bg-white">
                 {recentSales.length > 0 ? (
                   <div className="divide-y divide-slate-50">
                     {recentSales.map((sale) => (
@@ -438,14 +479,41 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
 
-              <Card>
-                 <CardHeader title="Daily Performance" />
-                 <div className="h-56 p-4">
+              <Card className="flex flex-col overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                 <div className="p-6 border-b border-slate-100 flex justify-between items-start bg-white">
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-800">Daily Performance</h3>
+                      <p className="text-sm text-slate-500 mt-1">Sales vs Expenses</p>
+                    </div>
+                    <div className="bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-xs font-bold border border-blue-100">
+                      Metrics
+                    </div>
+                 </div>
+                 <div className="h-56 p-6 bg-white">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={staffChartData}>
-                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#94a3b8'}} />
-                        <Tooltip cursor={{fill: 'transparent'}} contentStyle={tooltipStyle} />
-                        <Bar dataKey="Amount" fill="#3b82f6" radius={[6, 6, 0, 0]} barSize={40} />
+                      <BarChart data={staffChartData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#64748b', fontWeight: 500}} dy={10} />
+                        <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 11}} tickFormatter={(val) => `₱${(val/1000).toFixed(0)}k`} />
+                        <Tooltip 
+                          cursor={{fill: '#f8fafc', opacity: 0.8}}
+                          content={({ active, payload, label }) => {
+                            if (active && payload && payload.length) {
+                              return (
+                                <div className="bg-white p-3 border border-slate-100 shadow-xl rounded-xl ring-1 ring-black/5">
+                                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">{label}</p>
+                                  <p className="text-lg font-bold text-slate-800">₱{Number(payload[0].value).toLocaleString()}</p>
+                                </div>
+                              );
+                            }
+                            return null;
+                          }}
+                        />
+                        <Bar dataKey="Amount" radius={[6, 6, 0, 0]} barSize={40} animationDuration={1000}>
+                          {staffChartData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.name === 'Profit' ? '#10b981' : '#ef4444'} />
+                          ))}
+                        </Bar>
                       </BarChart>
                     </ResponsiveContainer>
                  </div>
@@ -460,14 +528,24 @@ export default function DashboardPage() {
   if (user?.role === 'FREEZER_VAN' && fvSummary) {
     return (
       <div className="space-y-8 animate-in fade-in w-full">
-        <div className="flex items-center gap-4 bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-           <div className="p-4 bg-blue-50 rounded-full text-blue-600 border border-blue-100">
-              <Snowflake className="w-8 h-8" />
+        <div className="flex justify-between items-center bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+           <div className="flex items-center gap-4">
+             <div className="p-4 bg-blue-50 rounded-full text-blue-600 border border-blue-100">
+                <Snowflake className="w-8 h-8" />
+             </div>
+             <div>
+               <h1 className="text-2xl font-bold text-slate-800">Freezer Van Operations</h1>
+               <p className="text-slate-500 text-sm mt-1">Daily and Monthly Performance Monitoring</p>
+             </div>
            </div>
-           <div>
-             <h1 className="text-2xl font-bold text-slate-800">Freezer Van Operations</h1>
-             <p className="text-slate-500 text-sm mt-1">Daily and Monthly Performance Monitoring</p>
-           </div>
+           <button 
+             onClick={handleManualRefresh} 
+             disabled={isRefreshing}
+             className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-lg border border-slate-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+             title="Refresh Data"
+           >
+             {isRefreshing ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
+           </button>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -502,19 +580,46 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        <Card>
-          <CardHeader title="Performance Analytics" subtitle="Daily vs Monthly Comparison" />
-          <div className="h-96 p-4">
+        <Card className="flex flex-col overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+          <div className="p-6 border-b border-slate-100 flex justify-between items-start bg-white">
+             <div>
+               <h3 className="text-lg font-bold text-slate-800">Performance Analytics</h3>
+               <p className="text-sm text-slate-500 mt-1">Daily vs Monthly Comparison</p>
+             </div>
+             <div className="bg-purple-50 text-purple-600 px-3 py-1 rounded-full text-xs font-bold border border-purple-100">
+               Metrics
+             </div>
+          </div>
+          <div className="h-96 p-6 bg-white">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={[
                 { name: 'Sales', Daily: fvSummary.daily.sales, Monthly: fvSummary.monthly.sales },
                 { name: 'Expenses', Daily: fvSummary.daily.expenses, Monthly: fvSummary.monthly.expenses },
               ]} barSize={60}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b'}} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tickFormatter={(val) => `₱${val}`} tick={{fill: '#64748b'}} />
-                <Tooltip contentStyle={tooltipStyle} cursor={{fill: '#f8fafc'}} />
-                <Legend />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12, fontWeight: 500}} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tickFormatter={(val) => `₱${val}`} tick={{fill: '#94a3b8', fontSize: 11}} />
+                <Tooltip 
+                  cursor={{fill: '#f8fafc', opacity: 0.8}}
+                  content={({ active, payload, label }) => {
+                    if (active && payload && payload.length) {
+                      return (
+                        <div className="bg-white p-4 border border-slate-100 shadow-xl rounded-xl ring-1 ring-black/5">
+                          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">{label}</p>
+                          {payload.map((entry: any, index: number) => (
+                            <div key={index} className="flex items-center gap-2 mb-1 last:mb-0">
+                              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }}></div>
+                              <span className="text-xs text-slate-500 font-medium w-16">{entry.name}:</span>
+                              <span className="text-sm font-bold text-slate-800">₱{Number(entry.value).toLocaleString()}</span>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ paddingBottom: '20px' }} />
                 <Bar dataKey="Daily" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Daily Total" />
                 <Bar dataKey="Monthly" fill="#8b5cf6" radius={[4, 4, 0, 0]} name="Monthly Total" />
               </BarChart>
@@ -533,14 +638,24 @@ export default function DashboardPage() {
     ];
      return (
       <div className="space-y-8 animate-in fade-in w-full">
-        <div className="flex items-center gap-4 bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-           <div className="p-4 bg-amber-50 rounded-full text-amber-600 border border-amber-100">
-              <Egg className="w-8 h-8" />
+        <div className="flex justify-between items-center bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+           <div className="flex items-center gap-4">
+             <div className="p-4 bg-amber-50 rounded-full text-amber-600 border border-amber-100">
+                <Egg className="w-8 h-8" />
+             </div>
+             <div>
+               <h1 className="text-2xl font-bold text-slate-800">Live Chicken Operations</h1>
+               <p className="text-slate-500 text-sm mt-1">Inventory and Distribution Tracking</p>
+             </div>
            </div>
-           <div>
-             <h1 className="text-2xl font-bold text-slate-800">Live Chicken Operations</h1>
-             <p className="text-slate-500 text-sm mt-1">Inventory and Distribution Tracking</p>
-           </div>
+           <button 
+             onClick={handleManualRefresh} 
+             disabled={isRefreshing}
+             className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-lg border border-slate-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+             title="Refresh Data"
+           >
+             {isRefreshing ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
+           </button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -550,9 +665,17 @@ export default function DashboardPage() {
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-           <Card>
-             <CardHeader title="Profit Margin Visualization" />
-             <div className="h-80 flex flex-col items-center justify-center">
+           <Card className="flex flex-col overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+             <div className="p-6 border-b border-slate-100 flex justify-between items-start bg-white">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-800">Profit Margin Visualization</h3>
+                  <p className="text-sm text-slate-500 mt-1">Net Sales vs Cost Analysis</p>
+                </div>
+                <div className="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full text-xs font-bold border border-emerald-100">
+                  Financials
+                </div>
+             </div>
+             <div className="h-80 flex flex-col items-center justify-center bg-white p-6 relative">
                <ResponsiveContainer width="100%" height="100%">
                  <PieChart>
                    <Pie 
@@ -564,18 +687,58 @@ export default function DashboardPage() {
                     paddingAngle={5} 
                     dataKey="value"
                   >
-                     <Cell fill="#10b981" /> {/* Net Sales */}
-                     <Cell fill="#ef4444" /> {/* Cost */}
+                     <Cell fill="#10b981" strokeWidth={0} /> {/* Net Sales */}
+                     <Cell fill="#ef4444" strokeWidth={0} /> {/* Cost */}
                    </Pie>
-                   <Tooltip contentStyle={tooltipStyle} />
-                   <Legend verticalAlign="bottom" height={36} />
+                   <Tooltip 
+                    cursor={{fill: 'transparent'}}
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        return (
+                          <div className="bg-white p-3 border border-slate-100 shadow-xl rounded-xl ring-1 ring-black/5">
+                            <div className="flex items-center gap-2 mb-1">
+                              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: payload[0].color }}></div>
+                              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">{data.name}</p>
+                            </div>
+                            <p className="text-lg font-bold text-slate-800">
+                              ₱{Number(data.value).toLocaleString()}
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                   />
+                   <Legend 
+                    verticalAlign="bottom" 
+                    height={36} 
+                    iconType="circle"
+                    formatter={(value) => <span className="text-slate-600 font-medium ml-1">{value}</span>}
+                   />
                  </PieChart>
                </ResponsiveContainer>
+               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-8">
+                 <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Margin</p>
+                 <p className="text-lg font-bold text-slate-800 mt-1">
+                   {lcSummary.salesReport.totalSales > 0 
+                     ? ((lcSummary.salesReport.netSales / lcSummary.salesReport.totalSales) * 100).toFixed(1) 
+                     : 0}%
+                 </p>
+               </div>
              </div>
            </Card>
 
-           <Card>
-             <CardHeader title="Detailed Breakdown" />
+           <Card className="flex flex-col overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+             <div className="p-6 border-b border-slate-100 flex justify-between items-start bg-white">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-800">Detailed Breakdown</h3>
+                  <p className="text-sm text-slate-500 mt-1">Weight and Financial Metrics</p>
+                </div>
+                <div className="bg-slate-50 text-slate-600 px-3 py-1 rounded-full text-xs font-bold border border-slate-200">
+                  Report
+                </div>
+             </div>
              <CardContent>
                <div className="space-y-5">
                   <div className="flex justify-between items-center p-4 bg-slate-50 rounded-xl border border-slate-100">
