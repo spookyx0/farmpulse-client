@@ -1,3 +1,4 @@
+/* eslint-disable react/no-unescaped-entities */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react-hooks/set-state-in-effect */
@@ -548,35 +549,81 @@ export default function DashboardPage() {
            </button>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <Card className="border-t-4 border-t-blue-500">
-            <CardHeader title="Daily Monitoring" subtitle="Today's Metrics" />
-            <CardContent>
-              <div className="grid grid-cols-3 gap-4 text-center divide-x divide-slate-100">
-                <KPIMini label="Sales" value={fvSummary.daily.sales} color="green" />
-                <KPIMini label="Expenses" value={fvSummary.daily.expenses} color="red" />
-                <KPIMini label="Profit" value={fvSummary.daily.profit} color="blue" />
-              </div>
-              <div className="mt-6 pt-6 border-t border-slate-100 text-center">
-                 <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Net Profit Margin</p>
-                 <p className="text-2xl font-bold text-slate-700">{fvSummary.daily.sales > 0 ? ((fvSummary.daily.profit / fvSummary.daily.sales) * 100).toFixed(1) : 0}%</p>
-              </div>
-            </CardContent>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Daily Card */}
+          <Card className="flex flex-col overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-start bg-white">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-800">Daily Performance</h3>
+                  <p className="text-sm text-slate-500 mt-1">Today's financial snapshot</p>
+                </div>
+                <div className="bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-xs font-bold border border-blue-100">
+                  {new Date().toLocaleDateString()}
+                </div>
+            </div>
+            <div className="p-6 bg-white space-y-6">
+               <div className="grid grid-cols-3 gap-4">
+                  <div className="flex flex-col items-center p-4 bg-slate-50 rounded-xl border border-slate-100 hover:border-blue-200 transition-colors">
+                     <div className="p-2 bg-green-100 text-green-600 rounded-lg mb-2"><TrendingUp className="w-5 h-5"/></div>
+                     <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Sales</p>
+                     <p className="text-lg font-bold text-slate-700 mt-1">₱{fvSummary.daily.sales.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                  </div>
+                  <div className="flex flex-col items-center p-4 bg-slate-50 rounded-xl border border-slate-100 hover:border-red-200 transition-colors">
+                     <div className="p-2 bg-red-100 text-red-600 rounded-lg mb-2"><TrendingDown className="w-5 h-5"/></div>
+                     <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Expenses</p>
+                     <p className="text-lg font-bold text-slate-700 mt-1">₱{fvSummary.daily.expenses.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                  </div>
+                  <div className="flex flex-col items-center p-4 bg-slate-50 rounded-xl border border-slate-100 hover:border-blue-200 transition-colors">
+                     <div className="p-2 bg-blue-100 text-blue-600 rounded-lg mb-2"><Wallet className="w-5 h-5"/></div>
+                     <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Profit</p>
+                     <p className={`text-lg font-bold mt-1 ${fvSummary.daily.profit >= 0 ? 'text-blue-600' : 'text-red-600'}`}>₱{fvSummary.daily.profit.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                  </div>
+               </div>
+               <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+                  <span className="text-sm font-semibold text-slate-500">Net Profit Margin</span>
+                  <span className={`text-xl font-bold ${fvSummary.daily.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {fvSummary.daily.sales > 0 ? ((fvSummary.daily.profit / fvSummary.daily.sales) * 100).toFixed(1) : 0}%
+                  </span>
+               </div>
+            </div>
           </Card>
 
-          <Card className="border-t-4 border-t-purple-500">
-            <CardHeader title="Monthly Monitoring" subtitle="Current Month Aggregates" />
-            <CardContent>
-              <div className="grid grid-cols-3 gap-4 text-center divide-x divide-slate-100">
-                <KPIMini label="Sales" value={fvSummary.monthly.sales} color="green" />
-                <KPIMini label="Expenses" value={fvSummary.monthly.expenses} color="red" />
-                <KPIMini label="Profit" value={fvSummary.monthly.profit} color="blue" />
-              </div>
-              <div className="mt-6 pt-6 border-t border-slate-100 text-center">
-                 <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Net Profit Margin</p>
-                 <p className="text-2xl font-bold text-slate-700">{fvSummary.monthly.sales > 0 ? ((fvSummary.monthly.profit / fvSummary.monthly.sales) * 100).toFixed(1) : 0}%</p>
-              </div>
-            </CardContent>
+          {/* Monthly Card */}
+          <Card className="flex flex-col overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-start bg-white">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-800">Monthly Performance</h3>
+                  <p className="text-sm text-slate-500 mt-1">Current month aggregates</p>
+                </div>
+                <div className="bg-purple-50 text-purple-600 px-3 py-1 rounded-full text-xs font-bold border border-purple-100">
+                  {new Date().toLocaleDateString(undefined, {month: 'long'})}
+                </div>
+            </div>
+            <div className="p-6 bg-white space-y-6">
+               <div className="grid grid-cols-3 gap-4">
+                  <div className="flex flex-col items-center p-4 bg-slate-50 rounded-xl border border-slate-100 hover:border-green-200 transition-colors">
+                     <div className="p-2 bg-green-100 text-green-600 rounded-lg mb-2"><TrendingUp className="w-5 h-5"/></div>
+                     <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Sales</p>
+                     <p className="text-lg font-bold text-slate-700 mt-1">₱{fvSummary.monthly.sales.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                  </div>
+                  <div className="flex flex-col items-center p-4 bg-slate-50 rounded-xl border border-slate-100 hover:border-red-200 transition-colors">
+                     <div className="p-2 bg-red-100 text-red-600 rounded-lg mb-2"><TrendingDown className="w-5 h-5"/></div>
+                     <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Expenses</p>
+                     <p className="text-lg font-bold text-slate-700 mt-1">₱{fvSummary.monthly.expenses.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                  </div>
+                  <div className="flex flex-col items-center p-4 bg-slate-50 rounded-xl border border-slate-100 hover:border-blue-200 transition-colors">
+                     <div className="p-2 bg-blue-100 text-blue-600 rounded-lg mb-2"><Wallet className="w-5 h-5"/></div>
+                     <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Profit</p>
+                     <p className={`text-lg font-bold mt-1 ${fvSummary.monthly.profit >= 0 ? 'text-blue-600' : 'text-red-600'}`}>₱{fvSummary.monthly.profit.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                  </div>
+               </div>
+               <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+                  <span className="text-sm font-semibold text-slate-500">Net Profit Margin</span>
+                  <span className={`text-xl font-bold ${fvSummary.monthly.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {fvSummary.monthly.sales > 0 ? ((fvSummary.monthly.profit / fvSummary.monthly.sales) * 100).toFixed(1) : 0}%
+                  </span>
+               </div>
+            </div>
           </Card>
         </div>
 
