@@ -312,15 +312,17 @@ export default function DashboardPage() {
           </Card>
 
           {/* Live Feed (5 cols) */}
-          <Card className="xl:col-span-5 h-[530px] flex flex-col">
-            <div className="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+          <Card className="xl:col-span-5 h-[530px] flex flex-col overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-start bg-white">
                <div>
                  <h3 className="text-lg font-bold text-slate-800">Live Transactions</h3>
-                 <p className="text-sm text-slate-500">Real-time sales feed across all branches</p>
+                 <p className="text-sm text-slate-500 mt-1">Real-time sales feed across all branches</p>
                </div>
-               <Activity className="w-5 h-5 text-blue-500 animate-pulse" />
+               <div className="bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-xs font-bold border border-blue-100 flex items-center gap-2">
+                 <Activity className="w-3 h-3 animate-pulse" /> Live
+               </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-0 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto p-0 custom-scrollbar bg-white">
               {recentSales.length > 0 ? (
                 <div className="divide-y divide-slate-50">
                   {recentSales.map((sale, idx) => (
