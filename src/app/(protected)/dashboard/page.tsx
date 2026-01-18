@@ -1,7 +1,7 @@
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable react-hooks/set-state-in-effect */
+ 
 "use client";
 
 import { useAuth } from '../../contexts/AuthContext';
@@ -223,7 +223,7 @@ export default function DashboardPage() {
                 FY {new Date().getFullYear()}
               </div>
             </div>
-            <div className="flex-1 p-6 min-h-0 bg-white w-full">
+            <div className="flex-1 p-6 min-h-0 min-w-0 bg-white w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={barData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -282,7 +282,7 @@ export default function DashboardPage() {
                  Live
                </div>
              </div>
-             <div className="flex-1 p-6 min-h-0 bg-white relative w-full">
+             <div className="flex-1 p-6 min-h-0 min-w-0 bg-white relative w-full">
                <ResponsiveContainer width="100%" height="100%">
                  <PieChart>
                    <Pie 
@@ -490,7 +490,7 @@ export default function DashboardPage() {
                       Metrics
                     </div>
                  </div>
-                 <div className="h-56 p-6 bg-white w-full">
+                 <div className="h-56 p-6 bg-white w-full min-w-0">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={staffChartData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -637,7 +637,7 @@ export default function DashboardPage() {
                Metrics
              </div>
           </div>
-          <div className="h-96 p-6 bg-white w-full">
+          <div className="h-96 p-6 bg-white w-full min-w-0">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={[
                 { name: 'Sales', Daily: fvSummary.daily.sales, Monthly: fvSummary.monthly.sales },
@@ -722,7 +722,7 @@ export default function DashboardPage() {
                   Financials
                 </div>
              </div>
-             <div className="h-80 flex flex-col items-center justify-center bg-white p-6 relative w-full">
+             <div className="h-80 flex flex-col items-center justify-center bg-white p-6 relative w-full min-w-0">
                <ResponsiveContainer width="100%" height="100%">
                  <PieChart>
                    <Pie 

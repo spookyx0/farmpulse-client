@@ -65,7 +65,7 @@ export default function Sidebar() {
       {/* Minimal Logo Header */}
       <div className="h-16 flex items-center px-6 border-b border-slate-800 bg-slate-450">
         <h2 className="text-xl font-bold text-white tracking-wide flex items-center gap-4">
-          <Image src="/LSBLogo.png" alt="LSB Logo" width={32} height={32} /> LSB Store
+          <Image src="/LSBLogo.png" alt="LSB Logo" width={32} height={32} className="w-8 h-8" /> LSB Store
         </h2>
       </div>
 

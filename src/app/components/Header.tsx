@@ -17,15 +17,26 @@ import Image from 'next/image';
 
 // Helper to format avatar URL
 const getAvatarUrl = (url: string | undefined | null) => {
-  if (!url) return '';
+  if (!url) return null;
   if (url.startsWith('data:') || url.startsWith('http') || url.startsWith('https')) return url;
   
   // Replace backslashes with forward slashes for Windows paths
   const cleanUrl = url.replace(/\\/g, '/');
   // Ensure leading slash
   const path = cleanUrl.startsWith('/') ? cleanUrl : `/${cleanUrl}`;
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-  return `${apiUrl}${path}`;
+  
+  // Determine base URL: Env Var -> Axios Default -> Fallback
+  let apiUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (!apiUrl && api.defaults.baseURL) {
+    apiUrl = api.defaults.baseURL;
+  }
+  if (!apiUrl) apiUrl = 'http://localhost:3001';
+  
+  apiUrl = apiUrl.trim();
+  // Remove trailing slash and optional '/api' suffix for static assets
+  const cleanApiUrl = apiUrl.replace(/\/$/, '').replace(/\/api$/, '');
+  
+  return `${cleanApiUrl}${path}`;
 };
 
 // Define the Notification Type
@@ -65,6 +76,13 @@ export default function Header() {
     if (user) {
       setDisplayUser(user);
       setImgError(false);
+      
+      // Attempt to fetch latest profile data
+      api.get('/auth/profile')
+        .then(res => {
+            if (res.data) setDisplayUser((prev: any) => ({ ...prev, ...res.data }));
+        })
+        .catch(err => console.warn("Profile sync failed (endpoint might be missing):", err.message));
     }
   }, [user]);
 
@@ -435,13 +453,15 @@ export default function Header() {
           >
             <div className="h-8 w-8 bg-gradient-to-tr from-green-500 to-teal-600 rounded-full flex items-center justify-center text-white shadow-sm overflow-hidden relative">
               {displayUser?.avatar && !imgError ? (
-                <Image 
-                  src={getAvatarUrl(displayUser.avatar)} 
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img 
+                  src={getAvatarUrl(displayUser.avatar) || ''} 
                   alt={displayUser?.username || 'User'} 
-                  fill 
-                  className="object-cover" 
-                  unoptimized
-                  onError={() => setImgError(true)}
+                  className="h-full w-full object-cover"
+                  onError={(e) => {
+                    console.error("Avatar failed to load:", e.currentTarget.src);
+                    setImgError(true);
+                  }}
                 />
               ) : (
                 <User className="w-4 h-4" />
@@ -492,20 +512,18 @@ export default function Header() {
                     <div className="relative group">
                         <div className="h-24 w-24 rounded-full overflow-hidden border-4 border-white shadow-lg bg-slate-100 relative">
                             {avatarPreview ? (
-                                <Image 
-                                  src={avatarPreview} 
+                                /* eslint-disable-next-line @next/next/no-img-element */
+                                <img 
+                                  src={avatarPreview}
                                   alt="Avatar" 
-                                  fill 
-                                  className="object-cover" 
-                                  unoptimized
+                                  className="h-full w-full object-cover"
                                 />
                             ) : (displayUser?.avatar && !imgError ? (
-                                <Image 
-                                  src={getAvatarUrl(displayUser.avatar)} 
+                                /* eslint-disable-next-line @next/next/no-img-element */
+                                <img 
+                                  src={getAvatarUrl(displayUser.avatar) || ''} 
                                   alt="Avatar" 
-                                  fill 
-                                  className="object-cover" 
-                                  unoptimized
+                                  className="h-full w-full object-cover"
                                   onError={() => setImgError(true)}
                                 />
                             ) : (
