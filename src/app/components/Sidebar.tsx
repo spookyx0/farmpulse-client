@@ -15,7 +15,8 @@ import {
   Egg, 
   ClipboardList,
   Users,
-  FileText
+  FileText,
+  MessageSquare
 } from 'lucide-react';
 
 // Update type to accept React Components (Icons) instead of just strings
@@ -38,6 +39,7 @@ const ownerLinks: NavSection[] = [
     items: [
       { href: '/staff', label: 'Staff Management', icon: <Users className="w-5 h-5" /> },
       { href: '/audit-logs', label: 'Audit Logs', icon: <FileText className="w-5 h-5" /> },
+      { href: '/chat', label: 'Chat', icon: <MessageSquare className="w-5 h-5" /> },
     ]
   }
 ];
@@ -51,6 +53,7 @@ const staffLinks: NavSection[] = [
       { href: '/inventory', label: 'Inventory', icon: <Package className="w-5 h-5" /> },
       { href: '/deliveries', label: 'Deliveries', icon: <Truck className="w-5 h-5" /> },
       { href: '/expenses', label: 'Expenses', icon: <Banknote className="w-5 h-5" /> },
+      { href: '/chat', label: 'Chat', icon: <MessageSquare className="w-5 h-5" /> },
     ]
   }
 ];
