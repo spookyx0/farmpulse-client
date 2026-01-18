@@ -6,8 +6,27 @@
 
 import { useAuth } from '../contexts/AuthContext';
 import { useSocket } from '../contexts/SocketContext';
-import { Bell, User, LogOut, Package, ShoppingCart, Truck, Info, Banknote } from 'lucide-react';
+import { useToast } from '../contexts/ToastContext';
+import api from '../services/api';
+import { Bell, User, LogOut, Package, ShoppingCart, Truck, Info, Banknote, Settings, Lock, Key, Camera } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
+import { Modal } from './ui/Modal';
+import { ConfirmationModal } from './ui/ConfirmationModal';
+import { useForm } from 'react-hook-form';
+import Image from 'next/image';
+
+// Helper to format avatar URL
+const getAvatarUrl = (url: string | undefined | null) => {
+  if (!url) return '';
+  if (url.startsWith('data:') || url.startsWith('http') || url.startsWith('https')) return url;
+  
+  // Replace backslashes with forward slashes for Windows paths
+  const cleanUrl = url.replace(/\\/g, '/');
+  // Ensure leading slash
+  const path = cleanUrl.startsWith('/') ? cleanUrl : `/${cleanUrl}`;
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+  return `${apiUrl}${path}`;
+};
 
 // Define the Notification Type
 interface NotificationItem {
@@ -21,14 +40,33 @@ interface NotificationItem {
 
 export default function Header() {
   const { user, logout } = useAuth();
+  const { showToast } = useToast();
   const socket = useSocket();
   
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const { register, handleSubmit, reset, formState: { errors } } = useForm();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [pendingData, setPendingData] = useState<any>(null);
+  
   const notifRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
+
+  const [displayUser, setDisplayUser] = useState<any>(user);
+  const [imgError, setImgError] = useState(false);
+
+  // Sync with context and fetch fresh data from DB
+  useEffect(() => {
+    if (user) {
+      setDisplayUser(user);
+      setImgError(false);
+    }
+  }, [user]);
 
   // Track current user ref to avoid stale closures in socket listeners
   const userRef = useRef(user);
@@ -245,6 +283,76 @@ export default function Header() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const onSaveChanges = async (data: any) => {
+    // Only validate password fields if user is trying to change it
+    if (data.newPassword || data.confirmPassword) {
+        if (data.newPassword !== data.confirmPassword) {
+            showToast("New passwords do not match.", "error");
+            return;
+        }
+        if (!data.currentPassword) {
+             showToast("Current password is required to change password.", "error");
+             return;
+        }
+        
+        setPendingData(data);
+        setShowConfirmModal(true);
+        return;
+    }
+    
+    await executeSave(data);
+  };
+
+  const executeSave = async (data: any) => {
+    setIsSubmitting(true);
+    try {
+      const formData = new FormData();
+
+      if (data.username) formData.append('username', data.username);
+      
+      if (data.newPassword) {
+        formData.append('currentPassword', data.currentPassword);
+        formData.append('newPassword', data.newPassword);
+      }
+
+      if (data.avatar && data.avatar.length > 0) {
+        formData.append('avatar', data.avatar[0]);
+      }
+
+      const response = await api.patch('/auth/profile', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      if (response.data) {
+        setDisplayUser((prev: any) => ({ ...prev, ...response.data }));
+      }
+
+      showToast("Profile updated successfully.", "success");
+      setIsProfileOpen(false);
+      reset();
+      setAvatarPreview(null);
+      setShowConfirmModal(false);
+      setPendingData(null);
+      
+    } catch (error: any) {
+      const msg = error.response?.data?.message || "Failed to update profile.";
+      showToast(msg, "error");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatarPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   return (
     <header className="bg-white h-16 border-b border-slate-200 sticky top-0 z-30 flex items-center justify-between px-6 shadow-sm">
       <div className="flex items-center gap-4">
@@ -325,12 +433,23 @@ export default function Header() {
             onClick={() => setShowProfileMenu(!showProfileMenu)}
             className="flex items-center gap-3 p-1.5 pr-3 rounded-full hover:bg-slate-50 transition-all border border-transparent hover:border-slate-200"
           >
-            <div className="h-8 w-8 bg-gradient-to-tr from-green-500 to-teal-600 rounded-full flex items-center justify-center text-white shadow-sm">
-              <User className="w-4 h-4" />
+            <div className="h-8 w-8 bg-gradient-to-tr from-green-500 to-teal-600 rounded-full flex items-center justify-center text-white shadow-sm overflow-hidden relative">
+              {displayUser?.avatar && !imgError ? (
+                <Image 
+                  src={getAvatarUrl(displayUser.avatar)} 
+                  alt={displayUser?.username || 'User'} 
+                  fill 
+                  className="object-cover" 
+                  unoptimized
+                  onError={() => setImgError(true)}
+                />
+              ) : (
+                <User className="w-4 h-4" />
+              )}
             </div>
             <div className="text-left hidden md:block">
-              <p className="text-sm font-semibold text-slate-700 leading-none">{user?.username}</p>
-              <p className="text-[10px] font-medium text-slate-500 uppercase mt-1 tracking-wide">{user?.role.replace('_', ' ')}</p>
+              <p className="text-sm font-semibold text-slate-700 leading-none">{displayUser?.username}</p>
+              <p className="text-[10px] font-medium text-slate-500 uppercase mt-1 tracking-wide">{displayUser?.role?.replace('_', ' ')}</p>
             </div>
           </button>
 
@@ -338,15 +457,15 @@ export default function Header() {
           {showProfileMenu && (
             <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 py-2 animate-in fade-in zoom-in-95 duration-200 origin-top-right z-50">
               <div className="px-4 py-3 border-b border-slate-50 md:hidden">
-                <p className="text-sm font-bold text-slate-800">{user?.username}</p>
-                <p className="text-xs text-slate-500">{user?.role}</p>
+                <p className="text-sm font-bold text-slate-800">{displayUser?.username}</p>
+                <p className="text-xs text-slate-500">{displayUser?.role}</p>
               </div>
               
               <button 
-                onClick={() => alert("Profile Settings - Coming Soon")}
+                onClick={() => { setShowProfileMenu(false); setIsProfileOpen(true); }}
                 className="w-full text-left px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors flex items-center gap-2"
               >
-                <User className="w-4 h-4" /> Profile Settings
+                <Settings className="w-4 h-4" /> Profile Settings
               </button>
               
               <div className="my-1 border-t border-slate-50"></div>
@@ -362,6 +481,159 @@ export default function Header() {
         </div>
 
       </div>
+
+      {/* Profile Settings Modal */}
+      <Modal isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} title="Profile Settings">
+        <div className="space-y-6">
+            <form onSubmit={handleSubmit(onSaveChanges)} className="space-y-6">
+                
+                {/* Avatar & Basic Info */}
+                <div className="flex flex-col items-center gap-4">
+                    <div className="relative group">
+                        <div className="h-24 w-24 rounded-full overflow-hidden border-4 border-white shadow-lg bg-slate-100 relative">
+                            {avatarPreview ? (
+                                <Image 
+                                  src={avatarPreview} 
+                                  alt="Avatar" 
+                                  fill 
+                                  className="object-cover" 
+                                  unoptimized
+                                />
+                            ) : (displayUser?.avatar && !imgError ? (
+                                <Image 
+                                  src={getAvatarUrl(displayUser.avatar)} 
+                                  alt="Avatar" 
+                                  fill 
+                                  className="object-cover" 
+                                  unoptimized
+                                  onError={() => setImgError(true)}
+                                />
+                            ) : (
+                                <div className="h-full w-full bg-gradient-to-tr from-green-500 to-teal-600 flex items-center justify-center text-white">
+                                    <User className="w-10 h-10" />
+                                </div>
+                            ))}
+                        </div>
+                        <label htmlFor="avatar-upload" className="absolute bottom-0 right-0 p-2 bg-slate-800 text-white rounded-full hover:bg-slate-700 cursor-pointer shadow-md transition-colors">
+                            <Camera className="w-4 h-4" />
+                            <input 
+                                id="avatar-upload" 
+                                type="file" 
+                                accept="image/*" 
+                                className="hidden" 
+                                {...register('avatar')}
+                                onChange={(e) => {
+                                    register('avatar').onChange(e);
+                                    handleAvatarChange(e);
+                                }}
+                            />
+                        </label>
+                    </div>
+                    <div className="text-center">
+                        <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">{displayUser?.role}</p>
+                        {displayUser?.branchId && <p className="text-xs text-slate-400">Branch #{displayUser.branchId}</p>}
+                    </div>
+                </div>
+                
+                <div className="space-y-4">
+                    {/* Name Field */}
+                    <div>
+                        <label className="block text-xs font-semibold text-slate-500 mb-1">Username / Display Name</label>
+                        <div className="relative">
+                            <User className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                            <input 
+                                type="text"
+                                defaultValue={displayUser?.username}
+                                {...register('username')}
+                                className="w-full pl-9 p-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none transition-all"
+                                placeholder="Enter your name"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="border-t border-slate-100 my-4"></div>
+
+                    <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2 pb-2">
+                        <Lock className="w-4 h-4 text-slate-400" /> Change Password <span className="text-xs font-normal text-slate-400 ml-auto">(Optional)</span>
+                    </h4>
+                    
+                    <div className="space-y-3">
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-500 mb-1">Current Password</label>
+                            <div className="relative">
+                                <Key className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                                <input 
+                                    type="password"
+                                    {...register('currentPassword')}
+                                    className="w-full pl-9 p-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none transition-all"
+                                    placeholder="••••••••"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-500 mb-1">New Password</label>
+                                <div className="relative">
+                                    <Lock className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                                    <input 
+                                        type="password"
+                                        {...register('newPassword', { 
+                                            minLength: { value: 6, message: 'Min 6 chars' }
+                                        })}
+                                        className="w-full pl-9 p-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none transition-all"
+                                        placeholder="••••••••"
+                                    />
+                                </div>
+                                {errors.newPassword && <p className="text-red-500 text-xs mt-1">{errors.newPassword.message as string}</p>}
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-500 mb-1">Confirm</label>
+                                <div className="relative">
+                                    <Lock className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                                    <input 
+                                        type="password"
+                                        {...register('confirmPassword')}
+                                        className="w-full pl-9 p-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none transition-all"
+                                        placeholder="••••••••"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="pt-2 flex justify-end gap-3">
+                    <button 
+                        type="button"
+                        onClick={() => setIsProfileOpen(false)}
+                        className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                    >
+                        Cancel
+                    </button>
+                    <button 
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="px-4 py-2 text-sm font-bold text-white bg-green-600 hover:bg-green-700 rounded-lg shadow-sm transition-all disabled:opacity-50 flex items-center gap-2"
+                    >
+                        {isSubmitting ? 'Saving...' : 'Save Changes'}
+                    </button>
+                </div>
+            </form>
+        </div>
+      </Modal>
+
+      <ConfirmationModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={() => executeSave(pendingData)}
+        title="Update Password?"
+        message="You are about to change your password. This will require you to login again with the new credentials on your next session."
+        confirmText="Yes, Update"
+        isLoading={isSubmitting}
+        variant="primary"
+      />
     </header>
   );
 }
