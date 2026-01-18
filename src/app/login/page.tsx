@@ -2,7 +2,7 @@
 
 import { useForm, FieldValues } from 'react-hook-form';
 import { useAuth } from '../contexts/AuthContext';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../services/api';
 import { Lock, User, ArrowRight, Loader2, CheckCircle, Mail, Phone, ShieldAlert } from 'lucide-react';
 import Image from 'next/image';
@@ -16,6 +16,20 @@ export default function LoginPage() {
   const [selectedRole, setSelectedRole] = useState<'OWNER' | 'STAFF' | null>(null);
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
   const [showContactAdminModal, setShowContactAdminModal] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      setMousePos({
+        x: (e.clientX / window.innerWidth) * 20 - 10,
+        y: (e.clientY / window.innerHeight) * 20 - 10,
+      });
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
 
   const onSubmit = async (data: FieldValues) => {
     setIsLoading(true);
@@ -162,8 +176,13 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <div className="text-sm text-center text-slate-500">
-            © 2026 LSB Store System. All rights reserved.
+          <div className="text-center space-y-2">
+            <p className="text-sm text-slate-500">© 2026 LSB Store System. All rights reserved.</p>
+            <div className="flex justify-center gap-4 text-xs font-medium text-slate-400">
+              <button type="button" onClick={() => setShowTermsModal(true)} className="hover:text-green-600 transition-colors">Terms of Service</button>
+              <span className="text-slate-300">•</span>
+              <button type="button" onClick={() => setShowPrivacyModal(true)} className="hover:text-green-600 transition-colors">Privacy Policy</button>
+            </div>
           </div>
         </div>
 
@@ -171,9 +190,9 @@ export default function LoginPage() {
         <div className="flex-1 bg-slate-900 p-12 text-white flex flex-col justify-center items-center relative overflow-hidden m-6 rounded-[3rem] shadow-2xl">
           <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 z-0"></div>
           <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-transparent via-green-900/5 to-blue-900/5 z-0"></div>
-          <div className="absolute -right-20 -top-20 w-96 h-96 bg-green-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '4s' }}></div>
-          <div className="absolute -left-20 -bottom-20 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '5s', animationDelay: '1s' }}></div>
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-indigo-500/5 rounded-full blur-[120px]"></div>
+          <div className="absolute -right-20 -top-20 w-96 h-96 bg-green-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '4s', transform: `translate(${mousePos.x}px, ${mousePos.y}px)` }}></div>
+          <div className="absolute -left-20 -bottom-20 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '5s', animationDelay: '1s', transform: `translate(${mousePos.x * -1}px, ${mousePos.y * -1}px)` }}></div>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-indigo-500/5 rounded-full blur-[120px]" style={{ transform: `translate(-50%, -50%) translate(${mousePos.x * 0.5}px, ${mousePos.y * 0.5}px)` }}></div>
           
           <div className="relative z-10 flex flex-col items-center w-full">
             <div className="text-center mb-10">
@@ -317,6 +336,54 @@ export default function LoginPage() {
                 <button 
                   onClick={() => setShowContactAdminModal(false)}
                   className="bg-slate-900 text-white px-4 py-2 rounded-lg hover:bg-slate-800 transition-colors text-sm"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </Modal>
+
+          <Modal isOpen={showTermsModal} onClose={() => setShowTermsModal(false)} title="Terms of Service">
+            <div className="space-y-4 text-slate-600 text-sm leading-relaxed">
+              <p>Welcome to the LSB Store Management System. By accessing or using this system, you agree to comply with and be bound by the following terms and conditions.</p>
+              
+              <h4 className="font-bold text-slate-800">1. Authorized Use</h4>
+              <p>This system is intended solely for authorized employees and management of LSB Store. Any unauthorized access, use, or modification of the system is strictly prohibited and may result in legal action.</p>
+
+              <h4 className="font-bold text-slate-800">2. Data Integrity</h4>
+              <p>Users are responsible for the accuracy of the data they enter. Falsification of records, inventory counts, or sales data is a serious violation of company policy.</p>
+
+              <h4 className="font-bold text-slate-800">3. Confidentiality</h4>
+              <p>All information contained within this system, including sales figures, inventory levels, and employee data, is confidential. You may not disclose this information to third parties without explicit authorization.</p>
+
+              <div className="pt-2 flex justify-end">
+                <button 
+                  onClick={() => setShowTermsModal(false)}
+                  className="bg-slate-900 text-white px-4 py-2 rounded-lg hover:bg-slate-800 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </Modal>
+
+          <Modal isOpen={showPrivacyModal} onClose={() => setShowPrivacyModal(false)} title="Privacy Policy">
+            <div className="space-y-4 text-slate-600 text-sm leading-relaxed">
+              <p>LSB Store is committed to protecting the privacy and security of your data within our Management System.</p>
+              
+              <h4 className="font-bold text-slate-800">1. Information Collection</h4>
+              <p>We collect system usage logs, transaction records, and user activity data to ensure security and accountability. This includes login times, actions performed, and IP addresses.</p>
+
+              <h4 className="font-bold text-slate-800">2. Data Usage</h4>
+              <p>The collected data is used for business analytics, inventory management, and security auditing. We do not sell or share your personal usage data with external marketing agencies.</p>
+
+              <h4 className="font-bold text-slate-800">3. Security</h4>
+              <p>We implement industry-standard security measures to protect against unauthorized access, alteration, disclosure, or destruction of data.</p>
+
+              <div className="pt-2 flex justify-end">
+                <button 
+                  onClick={() => setShowPrivacyModal(false)}
+                  className="bg-slate-900 text-white px-4 py-2 rounded-lg hover:bg-slate-800 transition-colors"
                 >
                   Close
                 </button>
