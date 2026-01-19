@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { useSocket } from '@/app/contexts/SocketContext';
+import api from '@/app/services/api';
 import { 
   Send, 
   Search, 
@@ -77,28 +78,20 @@ export default function ChatPage() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Mock data loading (Replace with actual API calls)
   useEffect(() => {
     const fetchContacts = async () => {
       try {
         if (!user) return;
 
+        const { data: users } = await api.get('/users');
+
         // Restrict chat based on role
         if (user.role === 'OWNER') {
           // Owner sees all Staff / Branches
-          setContacts([
-            { id: '2', username: 'San Roque', role: 'STAFF', isOnline: true, lastMessage: 'Sales report submitted.', lastMessageTime: '10:30 AM', unreadCount: 1 },
-            { id: '3', username: 'Rawis', role: 'STAFF', isOnline: false, lastMessage: 'Stock low on feed.', lastMessageTime: 'Yesterday', unreadCount: 0 },
-            { id: '4', username: 'Mondragon', role: 'STAFF', isOnline: true, lastMessage: 'Delivery received.', lastMessageTime: '9:15 AM', unreadCount: 0 },
-            { id: '5', username: 'Catarman', role: 'STAFF', isOnline: true, lastMessage: 'All good here.', lastMessageTime: '11:00 AM', unreadCount: 0 },
-            { id: '6', username: 'Catubig', role: 'STAFF', isOnline: false, lastMessage: 'Requesting leave.', lastMessageTime: 'Mon', unreadCount: 0 },
-            { id: '7', username: 'San Jose', role: 'STAFF', isOnline: false, lastMessage: 'Inventory update.', lastMessageTime: 'Sun', unreadCount: 0 },
-          ]);
+          setContacts(users.filter((u: ChatUser) => u.role !== 'OWNER'));
         } else {
           // Staff can only message the Owner
-          setContacts([
-            { id: '1', username: 'Owner', role: 'OWNER', isOnline: true, lastMessage: 'Welcome to LSB Chat', lastMessageTime: 'Now', unreadCount: 0 },
-          ]);
+          setContacts(users.filter((u: ChatUser) => u.role === 'OWNER'));
         }
       } catch (error) {
         console.error("Failed to fetch contacts", error);
@@ -107,6 +100,23 @@ export default function ChatPage() {
 
     if (user) fetchContacts();
   }, [user]);
+
+  // Mark messages as read
+  const markAsRead = useCallback(async (contactId: string) => {
+    if (!user) return;
+    
+    // Optimistic update
+    setContacts(prev => prev.map(c => 
+      c.id === contactId ? { ...c, unreadCount: 0 } : c
+    ));
+
+    try {
+      await api.patch(`/messages/read/${contactId}`);
+      socket?.emit('messagesRead', { senderId: contactId, readerId: user.id });
+    } catch (error) {
+      console.error("Failed to mark messages as read", error);
+    }
+  }, [user, socket]);
 
   // Socket listeners for typing
   useEffect(() => {
@@ -124,14 +134,47 @@ export default function ChatPage() {
       });
     };
 
+    const handleReceiveMessage = (message: Message) => {
+      const isChatOpen = selectedContact?.id === message.senderId;
+
+      if (isChatOpen) {
+        setMessages(prev => [...prev, { ...message, read: true }]);
+        markAsRead(message.senderId);
+      }
+      
+      setContacts(prev => prev.map(c => {
+        if (c.id === message.senderId) {
+          return {
+            ...c,
+            lastMessage: message.content,
+            lastMessageTime: new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            unreadCount: isChatOpen ? 0 : (c.unreadCount || 0) + 1
+          };
+        }
+        return c;
+      }));
+    };
+
+    const handleMessagesRead = (data: { readerId: string }) => {
+      if (selectedContact?.id === data.readerId) {
+        setMessages(prev => prev.map(msg => 
+          msg.senderId === String(user?.id) ? { ...msg, read: true } : msg
+        ));
+      }
+    };
+
     socket.on('typing', handleTyping);
     socket.on('stopTyping', handleStopTyping);
+    socket.on('receiveMessage', handleReceiveMessage);
+    socket.on('messagesRead', handleMessagesRead);
 
     return () => {
       socket.off('typing', handleTyping);
       socket.off('stopTyping', handleStopTyping);
+      socket.off('receiveMessage', handleReceiveMessage);
+      socket.off('messagesRead', handleMessagesRead);
     };
-  }, [socket]);
+  }, [socket, selectedContact, user, markAsRead]);
 
   // Handle input change with typing emission
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -209,13 +252,18 @@ export default function ChatPage() {
           {filteredContacts.map(contact => (
             <div 
               key={contact.id}
-              onClick={() => {
+              onClick={async () => {
                 setSelectedContact(contact);
                 setShowChatOnMobile(true);
-                // Mock loading messages
-                setMessages([
-                    { id: 'm1', senderId: contact.id, receiverId: String(user?.id || ''), content: contact.lastMessage || 'Hello!', createdAt: new Date().toISOString(), read: true }
-                ]); 
+                try {
+                  const { data } = await api.get(`/messages/${contact.id}`);
+                  setMessages(data);
+                  if (contact.unreadCount && contact.unreadCount > 0) {
+                    markAsRead(contact.id);
+                  }
+                } catch (error) {
+                  console.error("Failed to fetch messages", error);
+                }
               }}
               className={`p-4 flex items-center gap-3 cursor-pointer transition-colors border-b border-slate-50 hover:bg-slate-50 ${selectedContact?.id === contact.id ? 'bg-green-50 border-l-4 border-l-green-500' : ''}`}
             >
