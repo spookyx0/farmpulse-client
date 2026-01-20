@@ -24,9 +24,6 @@ import {
 const getAvatarUrl = (path: string | undefined) => {
   if (!path) return undefined;
   if (path.startsWith('http')) return path;
-  // Remove leading slash if present to avoid double slashes if needed, 
-  // though typically http://localhost:3001//uploads is fine too.
-  // We assume backend runs on port 3001 based on previous context.
   const cleanPath = path.startsWith('/') ? path.slice(1) : path;
   return `http://localhost:3001/${cleanPath}`; 
 };
@@ -34,7 +31,7 @@ const getAvatarUrl = (path: string | undefined) => {
 // Types
 interface Message {
   id: string;
-  senderId: string;
+  senderId: string; // This might come as number from DB, string from socket
   receiverId: string;
   content: string;
   createdAt: string;
@@ -156,7 +153,8 @@ export default function ChatPage() {
     };
 
     const handleReceiveMessage = (message: Message) => {
-      const isChatOpen = selectedContact?.id === message.senderId;
+      // FIX: Ensure ID comparison handles string vs number
+      const isChatOpen = selectedContact && String(selectedContact.id) === String(message.senderId);
 
       if (isChatOpen) {
         setMessages(prev => [...prev, { ...message, read: true }]);
@@ -164,7 +162,8 @@ export default function ChatPage() {
       }
       
       setContacts(prev => prev.map(c => {
-        if (c.id === message.senderId) {
+        // FIX: Ensure ID comparison handles string vs number
+        if (String(c.id) === String(message.senderId)) {
           return {
             ...c,
             lastMessage: message.content,
@@ -177,9 +176,9 @@ export default function ChatPage() {
     };
 
     const handleMessagesRead = (data: { readerId: string }) => {
-      if (selectedContact?.id === data.readerId) {
+      if (selectedContact && String(selectedContact.id) === String(data.readerId)) {
         setMessages(prev => prev.map(msg => 
-          msg.senderId === String(user?.id) ? { ...msg, read: true } : msg
+          String(msg.senderId) === String(user?.id) ? { ...msg, read: true } : msg
         ));
       }
     };
@@ -386,7 +385,9 @@ export default function ChatPage() {
             {/* Messages Area */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-slate-100">
               {messages.map((msg) => {
-                const isMe = msg.senderId === String(user?.id);
+                // FIX: Convert both IDs to String() to handle database (number) vs local (string) mismatch
+                const isMe = String(msg.senderId) === String(user?.id);
+                
                 return (
                   <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[85%] md:max-w-[70%] rounded-2xl px-4 py-2 shadow-sm relative group ${
