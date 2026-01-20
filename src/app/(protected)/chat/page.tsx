@@ -5,23 +5,13 @@ import { useAuth } from '@/app/contexts/AuthContext';
 import { useSocket } from '@/app/contexts/SocketContext';
 import api from '@/app/services/api';
 import { 
-  Send, 
-  Search, 
-  MoreVertical, 
-  Phone, 
-  Video, 
-  Image as ImageIcon, 
-  Paperclip, 
-  Smile,
-  User as UserIcon,
-  ArrowLeft,
-  Check,
-  CheckCheck,
-  MessageSquare
+  Send, Search, MoreVertical, Phone, Video, 
+  Image as ImageIcon, Paperclip, Smile, User as UserIcon, 
+  ArrowLeft, Check, CheckCheck, MessageSquare, X, FileText
 } from 'lucide-react';
 
-// --- Helper for Image URLs ---
-const getAvatarUrl = (path: string | undefined) => {
+// --- Helper for URLs ---
+const getUrl = (path: string | undefined) => {
   if (!path) return undefined;
   if (path.startsWith('http')) return path;
   const cleanPath = path.startsWith('/') ? path.slice(1) : path;
@@ -31,11 +21,14 @@ const getAvatarUrl = (path: string | undefined) => {
 // Types
 interface Message {
   id: string;
-  senderId: string; // This might come as number from DB, string from socket
+  senderId: string;
   receiverId: string;
   content: string;
   createdAt: string;
   read: boolean;
+  type: 'text' | 'image' | 'file'; // New field
+  fileUrl?: string;                // New field
+  fileName?: string;               // New field
 }
 
 interface ChatUser {
@@ -62,25 +55,24 @@ export default function ChatPage() {
   const [showChatOnMobile, setShowChatOnMobile] = useState(false);
   const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
+
+  // File Upload State
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const typingTimeoutRef = useRef<any>(null);
 
-  // Scroll to bottom
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+  useEffect(() => { scrollToBottom(); }, [messages, previewUrl]);
 
-  // Handle responsive view
+  // Responsive logic
   useEffect(() => {
-    const handleResize = () => {
-      setIsMobileView(window.innerWidth < 768);
-    };
+    const handleResize = () => setIsMobileView(window.innerWidth < 768);
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -89,84 +81,50 @@ export default function ChatPage() {
   // Fetch Contacts
   useEffect(() => {
     const fetchContacts = async () => {
+      if (!user) return;
       try {
-        if (!user) return;
-
         const { data: users } = await api.get('/users');
-
-        // Restrict chat based on role
-        let filteredUsers = users;
-        if (user.role === 'OWNER') {
-          // Owner sees all Staff / Branches
-          filteredUsers = users.filter((u: ChatUser) => u.role !== 'OWNER');
-        } else {
-          // Staff can only message the Owner
-          filteredUsers = users.filter((u: ChatUser) => u.role === 'OWNER');
-        }
+        const filteredUsers = user.role === 'OWNER' 
+          ? users.filter((u: ChatUser) => u.role !== 'OWNER') 
+          : users.filter((u: ChatUser) => u.role === 'OWNER');
         setContacts(filteredUsers);
       } catch (error) {
         console.error("Failed to fetch contacts", error);
       }
     };
-
     if (user) fetchContacts();
   }, [user]);
 
-  // Mark messages as read
+  // Mark as read
   const markAsRead = useCallback(async (contactId: string) => {
     if (!user) return;
-    
-    // Optimistic update
-    setContacts(prev => prev.map(c => 
-      c.id === contactId ? { ...c, unreadCount: 0 } : c
-    ));
-
+    setContacts(prev => prev.map(c => c.id === contactId ? { ...c, unreadCount: 0 } : c));
     try {
       await api.patch(`/messages/read/${contactId}`);
       socket?.emit('messagesRead', { senderId: contactId, readerId: user.id });
-    } catch (error) {
-      console.error("Failed to mark messages as read", error);
-    }
+    } catch (error) { console.error(error); }
   }, [user, socket]);
 
-  // Register User on Socket
+  // Register Socket
   useEffect(() => {
-    if (socket && user) {
-      socket.emit('register', user.id); 
-    }
+    if (socket && user) socket.emit('register', user.id); 
   }, [socket, user]);
 
-  // Socket listeners
+  // Socket Listeners
   useEffect(() => {
     if (!socket) return;
 
-    const handleTyping = (data: { senderId: string }) => {
-      setTypingUsers(prev => new Set(prev).add(data.senderId));
-    };
-
-    const handleStopTyping = (data: { senderId: string }) => {
-      setTypingUsers(prev => {
-        const next = new Set(prev);
-        next.delete(data.senderId);
-        return next;
-      });
-    };
-
     const handleReceiveMessage = (message: Message) => {
-      // FIX: Ensure ID comparison handles string vs number
       const isChatOpen = selectedContact && String(selectedContact.id) === String(message.senderId);
-
       if (isChatOpen) {
         setMessages(prev => [...prev, { ...message, read: true }]);
         markAsRead(message.senderId);
       }
-      
       setContacts(prev => prev.map(c => {
-        // FIX: Ensure ID comparison handles string vs number
         if (String(c.id) === String(message.senderId)) {
           return {
             ...c,
-            lastMessage: message.content,
+            lastMessage: message.type === 'image' ? 'Sent an image' : message.type === 'file' ? 'Sent a file' : message.content,
             lastMessageTime: new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             unreadCount: isChatOpen ? 0 : (c.unreadCount || 0) + 1
           };
@@ -175,132 +133,142 @@ export default function ChatPage() {
       }));
     };
 
-    const handleMessagesRead = (data: { readerId: string }) => {
-      if (selectedContact && String(selectedContact.id) === String(data.readerId)) {
-        setMessages(prev => prev.map(msg => 
-          String(msg.senderId) === String(user?.id) ? { ...msg, read: true } : msg
-        ));
-      }
-    };
-
     const handleUserStatusUpdate = (data: { userId: string | number, isOnline: boolean }) => {
-      // We convert IDs to String() to ensure safety
-      setContacts(prev => prev.map(c => {
-        if (String(c.id) === String(data.userId)) {
-          return { ...c, isOnline: data.isOnline };
-        }
-        return c;
-      }));
-      
-      // Also update selected contact if it's the one currently open
+      setContacts(prev => prev.map(c => String(c.id) === String(data.userId) ? { ...c, isOnline: data.isOnline } : c));
       if (selectedContact && String(selectedContact.id) === String(data.userId)) {
         setSelectedContact(prev => prev ? { ...prev, isOnline: data.isOnline } : null);
       }
     };
 
+    const handleTyping = (data: { senderId: string }) => setTypingUsers(prev => new Set(prev).add(data.senderId));
+    const handleStopTyping = (data: { senderId: string }) => setTypingUsers(prev => { const next = new Set(prev); next.delete(data.senderId); return next; });
+    const handleMessagesRead = (data: { readerId: string }) => {
+      if (selectedContact && String(selectedContact.id) === String(data.readerId)) {
+        setMessages(prev => prev.map(msg => String(msg.senderId) === String(user?.id) ? { ...msg, read: true } : msg));
+      }
+    };
+
+    socket.on('receiveMessage', handleReceiveMessage);
+    socket.on('userStatusUpdate', handleUserStatusUpdate);
     socket.on('typing', handleTyping);
     socket.on('stopTyping', handleStopTyping);
-    socket.on('receiveMessage', handleReceiveMessage);
     socket.on('messagesRead', handleMessagesRead);
-    socket.on('userStatusUpdate', handleUserStatusUpdate);
 
     return () => {
+      socket.off('receiveMessage', handleReceiveMessage);
+      socket.off('userStatusUpdate', handleUserStatusUpdate);
       socket.off('typing', handleTyping);
       socket.off('stopTyping', handleStopTyping);
-      socket.off('receiveMessage', handleReceiveMessage);
       socket.off('messagesRead', handleMessagesRead);
-      socket.off('userStatusUpdate', handleUserStatusUpdate);
     };
   }, [socket, selectedContact, user, markAsRead]);
 
-  // Handle input change with typing emission
+  // --- File Handlers ---
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'file') => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setSelectedFile(file);
+      
+      // Create preview for images
+      if (type === 'image') {
+        const objectUrl = URL.createObjectURL(file);
+        setPreviewUrl(objectUrl);
+      } else {
+        setPreviewUrl(null); // No preview for generic files
+      }
+    }
+  };
+
+  const clearSelectedFile = () => {
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (imageInputRef.current) imageInputRef.current.value = '';
+  };
+
+  // --- Send Message ---
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if ((!newMessage.trim() && !selectedFile) || !selectedContact || !user) return;
+
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    socket?.emit('stopTyping', { receiverId: selectedContact.id });
+
+    try {
+      let msg: Message;
+
+      if (selectedFile) {
+        // --- UPLOAD FLOW ---
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+        formData.append('receiverId', selectedContact.id);
+        formData.append('type', previewUrl ? 'image' : 'file'); // infer type from preview existence or pass explicitly
+
+        const { data } = await api.post('/messages/upload', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        msg = data;
+      } else {
+        // --- TEXT FLOW ---
+        msg = {
+          id: Date.now().toString(),
+          senderId: String(user.id),
+          receiverId: selectedContact.id,
+          content: newMessage,
+          createdAt: new Date().toISOString(),
+          read: false,
+          type: 'text'
+        };
+        // Emit text immediately
+        socket?.emit('sendMessage', {
+          receiverId: selectedContact.id,
+          content: newMessage
+        });
+      }
+
+      // Optimistic Update
+      setMessages(prev => [...prev, msg]);
+      setNewMessage('');
+      clearSelectedFile();
+
+    } catch (error) {
+      console.error("Failed to send message", error);
+    }
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewMessage(e.target.value);
-    
     if (socket && selectedContact) {
       socket.emit('typing', { receiverId: selectedContact.id });
-      
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-      
-      typingTimeoutRef.current = setTimeout(() => {
-        socket.emit('stopTyping', { receiverId: selectedContact.id });
-      }, 2000);
+      typingTimeoutRef.current = setTimeout(() => socket.emit('stopTyping', { receiverId: selectedContact.id }), 2000);
     }
   };
 
-  // Handle sending message
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newMessage.trim() || !selectedContact || !user) return;
-
-    // Clear typing status
-    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    if (socket) socket.emit('stopTyping', { receiverId: selectedContact.id });
-
-    const msg: Message = {
-      id: Date.now().toString(),
-      senderId: String(user.id),
-      receiverId: selectedContact.id,
-      content: newMessage,
-      createdAt: new Date().toISOString(),
-      read: false
-    };
-
-    // Optimistic update
-    setMessages(prev => [...prev, msg]);
-    setNewMessage('');
-    
-    // Emit to socket
-    if (socket) {
-      socket.emit('sendMessage', {
-        receiverId: selectedContact.id,
-        content: newMessage
-      });
-    }
-  };
-
-  // Filter contacts
   const filteredContacts = contacts.filter(c => 
-    c.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.role.toLowerCase().includes(searchTerm.toLowerCase())
+    c.username.toLowerCase().includes(searchTerm.toLowerCase()) || c.role.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
     <div className="flex h-[calc(100vh-4rem)] bg-slate-50 overflow-hidden">
-      {/* Sidebar / Contact List */}
+      {/* Sidebar */}
       <div className={`${isMobileView && showChatOnMobile ? 'hidden' : 'flex flex-col'} w-full md:w-80 bg-white border-r border-slate-200`}>
-        {/* Sidebar Header */}
         <div className="p-4 border-b border-slate-100 bg-slate-50/50">
           <h2 className="text-xl font-bold text-slate-800 mb-4">Messages</h2>
           <div className="relative">
             <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-            <input 
-              type="text" 
-              placeholder="Search people..." 
-              className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50 transition-all"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+            <input type="text" placeholder="Search..." className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
           </div>
         </div>
-
-        {/* Contacts List */}
         <div className="flex-1 overflow-y-auto custom-scrollbar">
           {filteredContacts.map(contact => (
-            <div 
-              key={contact.id}
-              onClick={async () => {
-                setSelectedContact(contact);
-                setShowChatOnMobile(true);
+            <div key={contact.id} onClick={async () => {
+                setSelectedContact(contact); setShowChatOnMobile(true);
                 try {
                   const { data } = await api.get(`/messages/${contact.id}`);
                   setMessages(data);
-                  if (contact.unreadCount && contact.unreadCount > 0) {
-                    markAsRead(contact.id);
-                  }
-                } catch (error) {
-                  console.error("Failed to fetch messages", error);
-                }
+                  if (contact.unreadCount) markAsRead(contact.id);
+                } catch (error) { console.error(error); }
               }}
               className={`p-4 flex items-center gap-3 cursor-pointer transition-colors border-b border-slate-50 hover:bg-slate-50 ${selectedContact?.id === contact.id ? 'bg-green-50 border-l-4 border-l-green-500' : ''}`}
             >
@@ -308,19 +276,10 @@ export default function ChatPage() {
                 <div className="w-12 h-12 rounded-full bg-slate-200 flex items-center justify-center overflow-hidden border border-slate-100">
                   {contact.avatar && !imgErrors[contact.id] ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
-                    <img 
-                        src={getAvatarUrl(contact.avatar)} 
-                        alt={contact.username} 
-                        className="w-full h-full object-cover"
-                        onError={() => setImgErrors(prev => ({...prev, [contact.id]: true}))}
-                    />
-                  ) : (
-                    <UserIcon className="w-6 h-6 text-slate-400" />
-                  )}
+                    <img src={getUrl(contact.avatar)} alt={contact.username} className="w-full h-full object-cover" onError={() => setImgErrors(prev => ({...prev, [contact.id]: true}))} />
+                  ) : <UserIcon className="w-6 h-6 text-slate-400" />}
                 </div>
-                {contact.isOnline && (
-                  <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></span>
-                )}
+                {contact.isOnline && <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></span>}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-baseline mb-1">
@@ -329,11 +288,7 @@ export default function ChatPage() {
                 </div>
                 <div className="flex justify-between items-center">
                     <p className="text-sm text-slate-500 truncate pr-2">{contact.lastMessage}</p>
-                    {contact.unreadCount && contact.unreadCount > 0 ? (
-                        <span className="bg-green-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center">
-                            {contact.unreadCount}
-                        </span>
-                    ) : null}
+                    {contact.unreadCount && contact.unreadCount > 0 ? <span className="bg-green-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center">{contact.unreadCount}</span> : null}
                 </div>
               </div>
             </div>
@@ -345,121 +300,116 @@ export default function ChatPage() {
       <div className={`${isMobileView && !showChatOnMobile ? 'hidden' : 'flex flex-col'} flex-1 bg-[#F0F2F5]`}>
         {selectedContact ? (
           <>
-            {/* Chat Header */}
             <div className="h-16 px-4 flex items-center justify-between bg-white border-b border-slate-200 shadow-sm z-10">
               <div className="flex items-center gap-3">
-                {isMobileView && (
-                  <button onClick={() => setShowChatOnMobile(false)} className="p-2 -ml-2 hover:bg-slate-100 rounded-full">
-                    <ArrowLeft className="w-5 h-5 text-slate-600" />
-                  </button>
-                )}
+                {isMobileView && <button onClick={() => setShowChatOnMobile(false)} className="p-2 -ml-2 hover:bg-slate-100 rounded-full"><ArrowLeft className="w-5 h-5 text-slate-600" /></button>}
                 <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center overflow-hidden">
                   {selectedContact.avatar && !imgErrors[selectedContact.id] ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
-                    <img src={getAvatarUrl(selectedContact.avatar)} alt={selectedContact.username} className="w-full h-full object-cover" />
-                  ) : (
-                    <UserIcon className="w-5 h-5 text-slate-400" />
-                  )}
+                    <img src={getUrl(selectedContact.avatar)} alt={selectedContact.username} className="w-full h-full object-cover" />
+                  ) : <UserIcon className="w-5 h-5 text-slate-400" />}
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-800 leading-tight">{selectedContact.username}</h3>
-                  <p className="text-xs text-green-600 font-medium flex items-center gap-1">
-                    {selectedContact.isOnline ? 'Online' : 'Offline'}
-                  </p>
+                  <p className="text-xs text-green-600 font-medium flex items-center gap-1">{selectedContact.isOnline ? 'Online' : 'Offline'}</p>
                 </div>
               </div>
-              
               <div className="flex items-center gap-1 md:gap-2">
-                <button className="p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors hidden md:block">
-                  <Phone className="w-5 h-5" />
-                </button>
-                <button className="p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors hidden md:block">
-                  <Video className="w-5 h-5" />
-                </button>
-                <button className="p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors">
-                  <MoreVertical className="w-5 h-5" />
-                </button>
+                <button className="p-2 text-slate-500 hover:bg-slate-100 rounded-full hidden md:block"><Phone className="w-5 h-5" /></button>
+                <button className="p-2 text-slate-500 hover:bg-slate-100 rounded-full hidden md:block"><Video className="w-5 h-5" /></button>
+                <button className="p-2 text-slate-500 hover:bg-slate-100 rounded-full"><MoreVertical className="w-5 h-5" /></button>
               </div>
             </div>
 
-            {/* Messages Area */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-slate-100">
               {messages.map((msg) => {
-                // FIX: Convert both IDs to String() to handle database (number) vs local (string) mismatch
                 const isMe = String(msg.senderId) === String(user?.id);
-                
                 return (
                   <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[85%] md:max-w-[70%] rounded-2xl px-4 py-2 shadow-sm relative group ${
-                      isMe 
-                        ? 'bg-green-600 text-white rounded-tr-none' 
-                        : 'bg-white text-slate-800 rounded-tl-none border border-slate-100'
-                    }`}>
-                      <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{msg.content}</p>
-                      <div className={`flex items-center justify-end gap-1 mt-1 ${isMe ? 'text-green-100' : 'text-slate-400'}`}>
-                        <span className="text-[10px]">
-                          {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                        {isMe && (
-                          msg.read ? <CheckCheck className="w-3 h-3" /> : <Check className="w-3 h-3" />
-                        )}
+                    <div className={`max-w-[85%] md:max-w-[70%] rounded-2xl p-2 shadow-sm relative group ${isMe ? 'bg-green-600 text-white rounded-tr-none' : 'bg-white text-slate-800 rounded-tl-none border border-slate-100'}`}>
+                      
+                      {/* --- CONTENT RENDER LOGIC --- */}
+                      {msg.type === 'image' && msg.fileUrl ? (
+                         /* eslint-disable-next-line @next/next/no-img-element */
+                        <img src={getUrl(msg.fileUrl)} alt="Shared" className="rounded-lg max-w-full mb-1 cursor-pointer hover:opacity-95" />
+                      ) : msg.type === 'file' && msg.fileUrl ? (
+                        <div className="flex items-center gap-3 p-2 bg-black/10 rounded-lg mb-1">
+                          <div className="p-2 bg-white rounded-full"><FileText className="w-5 h-5 text-green-600" /></div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{msg.fileName || 'Attachment'}</p>
+                            <a href={getUrl(msg.fileUrl)} download target="_blank" rel="noreferrer" className="text-xs underline opacity-80 hover:opacity-100">Download</a>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-sm leading-relaxed whitespace-pre-wrap break-words px-2 pt-1">{msg.content}</p>
+                      )}
+
+                      <div className={`flex items-center justify-end gap-1 mt-1 px-2 ${isMe ? 'text-green-100' : 'text-slate-400'}`}>
+                        <span className="text-[10px]">{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        {isMe && (msg.read ? <CheckCheck className="w-3 h-3" /> : <Check className="w-3 h-3" />)}
                       </div>
                     </div>
                   </div>
                 );
               })}
               {selectedContact && typingUsers.has(selectedContact.id) && (
-                <div className="flex justify-start mb-2">
-                   <div className="bg-white border border-slate-100 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm flex items-center gap-1">
-                     <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
-                     <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
-                     <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"></span>
-                   </div>
-                </div>
+                <div className="flex justify-start mb-2"><div className="bg-white border border-slate-100 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm flex items-center gap-1"><span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span><span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span><span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"></span></div></div>
               )}
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Input Area */}
             <div className="p-3 md:p-4 bg-white border-t border-slate-200">
+              {/* --- File Preview Area --- */}
+              {selectedFile && (
+                <div className="mb-2 p-2 bg-slate-100 rounded-lg flex items-center justify-between border border-slate-200 animate-slide-up">
+                  <div className="flex items-center gap-3">
+                    {previewUrl ? (
+                         /* eslint-disable-next-line @next/next/no-img-element */
+                        <img src={previewUrl} alt="Preview" className="w-10 h-10 object-cover rounded-md border border-white shadow-sm" />
+                    ) : (
+                        <div className="w-10 h-10 bg-slate-200 rounded-md flex items-center justify-center"><FileText className="w-5 h-5 text-slate-500" /></div>
+                    )}
+                    <div className="text-xs text-slate-600">
+                      <p className="font-semibold truncate max-w-[150px]">{selectedFile.name}</p>
+                      <p>{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                    </div>
+                  </div>
+                  <button onClick={clearSelectedFile} className="p-1 hover:bg-slate-200 rounded-full text-slate-500"><X className="w-4 h-4" /></button>
+                </div>
+              )}
+
               <form onSubmit={handleSendMessage} className="flex items-end gap-2 max-w-4xl mx-auto">
                 <div className="flex gap-1 mb-2 md:flex">
-                    <button type="button" className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
-                        <Smile className="w-5 h-5" />
-                    </button>
-                    <button type="button" className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
-                        <Paperclip className="w-5 h-5" />
-                    </button>
-                    <button type="button" className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
-                        <ImageIcon className="w-5 h-5" />
-                    </button>
+                    <input type="file" ref={fileInputRef} className="hidden" onChange={(e) => handleFileSelect(e, 'file')} />
+                    <input type="file" ref={imageInputRef} className="hidden" accept="image/*" onChange={(e) => handleFileSelect(e, 'image')} />
+
+                    <button type="button" className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full" title="Emoji (Not implemented)"><Smile className="w-5 h-5" /></button>
+                    
+                    {/* Attach File Button */}
+                    <button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full"><Paperclip className="w-5 h-5" /></button>
+                    
+                    {/* Attach Image Button */}
+                    <button type="button" onClick={() => imageInputRef.current?.click()} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full"><ImageIcon className="w-5 h-5" /></button>
                 </div>
                 
-                <div className="flex-1 bg-slate-100 rounded-2xl flex items-center border border-transparent focus-within:border-green-500/50 focus-within:bg-white focus-within:ring-2 focus-within:ring-green-100 transition-all">
+                <div className="flex-1 bg-slate-100 rounded-2xl flex items-center border border-transparent focus-within:border-green-500/50 focus-within:bg-white focus-within:ring-2 focus-within:ring-green-100">
                   <input
                     type="text"
                     value={newMessage}
                     onChange={handleInputChange}
-                    placeholder="Type a message..."
+                    placeholder={selectedFile ? "Add a caption (optional)..." : "Type a message..."}
+                    disabled={!!selectedFile && false} // Optional: disable text input if file selected, or allow caption
                     className="w-full bg-transparent border-none px-4 py-3 focus:ring-0 text-sm text-slate-800 placeholder:text-slate-400 max-h-32"
                   />
                 </div>
 
-                <button 
-                  type="submit" 
-                  disabled={!newMessage.trim()}
-                  className="p-3 bg-green-600 text-white rounded-full shadow-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform active:scale-95 flex-shrink-0 mb-0.5"
-                >
-                  <Send className="w-5 h-5 ml-0.5" />
-                </button>
+                <button type="submit" disabled={!newMessage.trim() && !selectedFile} className="p-3 bg-green-600 text-white rounded-full shadow-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform active:scale-95 flex-shrink-0 mb-0.5"><Send className="w-5 h-5 ml-0.5" /></button>
               </form>
             </div>
           </>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-slate-400 p-8 text-center">
-            <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-6">
-                <MessageSquare className="w-10 h-10 text-slate-300" />
-            </div>
+            <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-6"><MessageSquare className="w-10 h-10 text-slate-300" /></div>
             <h3 className="text-xl font-bold text-slate-700 mb-2">Welcome to LSB Chat</h3>
             <p className="max-w-md text-sm">Select a conversation from the sidebar to start messaging your team members.</p>
           </div>
