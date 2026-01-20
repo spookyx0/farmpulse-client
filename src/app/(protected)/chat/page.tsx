@@ -20,6 +20,17 @@ import {
   MessageSquare
 } from 'lucide-react';
 
+// --- Helper for Image URLs ---
+const getAvatarUrl = (path: string | undefined) => {
+  if (!path) return undefined;
+  if (path.startsWith('http')) return path;
+  // Remove leading slash if present to avoid double slashes if needed, 
+  // though typically http://localhost:3001//uploads is fine too.
+  // We assume backend runs on port 3001 based on previous context.
+  const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+  return `http://localhost:3001/${cleanPath}`; 
+};
+
 // Types
 interface Message {
   id: string;
@@ -78,6 +89,7 @@ export default function ChatPage() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Fetch Contacts
   useEffect(() => {
     const fetchContacts = async () => {
       try {
@@ -86,13 +98,15 @@ export default function ChatPage() {
         const { data: users } = await api.get('/users');
 
         // Restrict chat based on role
+        let filteredUsers = users;
         if (user.role === 'OWNER') {
           // Owner sees all Staff / Branches
-          setContacts(users.filter((u: ChatUser) => u.role !== 'OWNER'));
+          filteredUsers = users.filter((u: ChatUser) => u.role !== 'OWNER');
         } else {
           // Staff can only message the Owner
-          setContacts(users.filter((u: ChatUser) => u.role === 'OWNER'));
+          filteredUsers = users.filter((u: ChatUser) => u.role === 'OWNER');
         }
+        setContacts(filteredUsers);
       } catch (error) {
         console.error("Failed to fetch contacts", error);
       }
@@ -118,7 +132,14 @@ export default function ChatPage() {
     }
   }, [user, socket]);
 
-  // Socket listeners for typing
+  // Register User on Socket
+  useEffect(() => {
+    if (socket && user) {
+      socket.emit('register', user.id); 
+    }
+  }, [socket, user]);
+
+  // Socket listeners
   useEffect(() => {
     if (!socket) return;
 
@@ -163,16 +184,33 @@ export default function ChatPage() {
       }
     };
 
+    const handleUserStatusUpdate = (data: { userId: string | number, isOnline: boolean }) => {
+      // We convert IDs to String() to ensure safety
+      setContacts(prev => prev.map(c => {
+        if (String(c.id) === String(data.userId)) {
+          return { ...c, isOnline: data.isOnline };
+        }
+        return c;
+      }));
+      
+      // Also update selected contact if it's the one currently open
+      if (selectedContact && String(selectedContact.id) === String(data.userId)) {
+        setSelectedContact(prev => prev ? { ...prev, isOnline: data.isOnline } : null);
+      }
+    };
+
     socket.on('typing', handleTyping);
     socket.on('stopTyping', handleStopTyping);
     socket.on('receiveMessage', handleReceiveMessage);
     socket.on('messagesRead', handleMessagesRead);
+    socket.on('userStatusUpdate', handleUserStatusUpdate);
 
     return () => {
       socket.off('typing', handleTyping);
       socket.off('stopTyping', handleStopTyping);
       socket.off('receiveMessage', handleReceiveMessage);
       socket.off('messagesRead', handleMessagesRead);
+      socket.off('userStatusUpdate', handleUserStatusUpdate);
     };
   }, [socket, selectedContact, user, markAsRead]);
 
@@ -272,7 +310,7 @@ export default function ChatPage() {
                   {contact.avatar && !imgErrors[contact.id] ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img 
-                        src={contact.avatar} 
+                        src={getAvatarUrl(contact.avatar)} 
                         alt={contact.username} 
                         className="w-full h-full object-cover"
                         onError={() => setImgErrors(prev => ({...prev, [contact.id]: true}))}
@@ -319,7 +357,7 @@ export default function ChatPage() {
                 <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center overflow-hidden">
                   {selectedContact.avatar && !imgErrors[selectedContact.id] ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
-                    <img src={selectedContact.avatar} alt={selectedContact.username} className="w-full h-full object-cover" />
+                    <img src={getAvatarUrl(selectedContact.avatar)} alt={selectedContact.username} className="w-full h-full object-cover" />
                   ) : (
                     <UserIcon className="w-5 h-5 text-slate-400" />
                   )}
