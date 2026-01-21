@@ -38,7 +38,7 @@ const ownerLinks: NavSection[] = [
     title: 'Admin Menu',
     items: [
       { href: '/staff', label: 'Staff Management', icon: <Users className="w-5 h-5" /> },
-      { href: '/audit-logs', label: 'Audit Logs', icon: <FileText className="w-5 h-5" /> },
+      { href: '/audit', label: 'Audit Logs', icon: <FileText className="w-5 h-5" /> },
       { href: '/chat', label: 'Chat', icon: <MessageSquare className="w-5 h-5" /> },
     ]
   }
