@@ -6,8 +6,16 @@
 import { useState, useEffect } from 'react';
 import api from '@/app/services/api';
 import { 
-  History, Filter, Eye, ArrowRight, ShieldAlert, X 
+  History, Filter, Eye, ArrowRight, ShieldAlert, X, User as UserIcon
 } from 'lucide-react';
+
+// --- HELPER: Construct Image URL ---
+const getUrl = (path: string | undefined) => {
+  if (!path) return undefined;
+  if (path.startsWith('http')) return path;
+  // Adjust this base URL if your backend runs on a different port/domain
+  return `http://localhost:3001/${path.startsWith('/') ? path.slice(1) : path}`;
+};
 
 export default function AuditLogsPage() {
   const [logs, setLogs] = useState([]);
@@ -20,6 +28,9 @@ export default function AuditLogsPage() {
   });
   const [selectedLog, setSelectedLog] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  
+  // State to track broken images so we fall back to initials
+  const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
 
   const fetchLogs = async () => {
     setLoading(true);
@@ -43,12 +54,10 @@ export default function AuditLogsPage() {
 
   // --- HELPER: Generate Text Description for Table ---
   const getLogDescription = (log: any) => {
-    // 1. Priority: Explicit Reason
     if (log.newValues?.reason) {
         return <span className="font-bold text-slate-700">Reason: "{log.newValues.reason}"</span>;
     }
 
-    // 2. Updates: List changed fields
     if (log.action === 'UPDATE' && log.oldValues && log.newValues) {
         const changedKeys = Object.keys(log.newValues).filter(k => 
             log.oldValues[k] !== log.newValues[k] && k !== 'updatedAt' && k !== 'reason'
@@ -64,7 +73,6 @@ export default function AuditLogsPage() {
         }
     }
 
-    // 3. Create/Delete/Other
     if (log.resourceId) {
         return <span className="opacity-80">Resource ID: {log.resourceId}</span>;
     }
@@ -182,7 +190,6 @@ export default function AuditLogsPage() {
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <table className="w-full text-sm text-left border-collapse">
             <thead className="bg-slate-50/90 backdrop-blur-sm border-b border-slate-200 text-slate-500 font-semibold sticky top-0 z-10 shadow-sm">
-              {/* FIX: Removed comments inside tr */}
               <tr>
                 <th className="p-4 w-64">Actor</th>
                 <th className="p-4 w-32">Action</th>
@@ -199,8 +206,19 @@ export default function AuditLogsPage() {
                 <tr key={log.id} className="hover:bg-slate-50/80 transition-colors group">
                   <td className="p-4 align-top">
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-xs font-bold text-slate-600 shadow-sm">
-                        {log.user?.username?.[0]?.toUpperCase() || 'S'}
+                      {/* --- AVATAR LOGIC --- */}
+                      <div className="w-9 h-9 bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-xs font-bold text-slate-600 shadow-sm overflow-hidden relative">
+                         {log.user?.avatar && !imgErrors[log.id] ? (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img 
+                                src={getUrl(log.user.avatar)} 
+                                alt="User" 
+                                className="w-full h-full object-cover"
+                                onError={() => setImgErrors(prev => ({...prev, [log.id]: true}))}
+                            />
+                         ) : (
+                            log.user?.username?.[0]?.toUpperCase() || <UserIcon className="w-4 h-4 text-slate-400" />
+                         )}
                       </div>
                       <div>
                         <p className="font-semibold text-slate-700">{log.user?.username || 'System'}</p>
@@ -224,7 +242,6 @@ export default function AuditLogsPage() {
                     </div>
                   </td>
                   
-                  {/* FIX: Removed comments here too */}
                   <td className="p-4 text-slate-500 font-mono text-xs whitespace-normal break-words align-top leading-relaxed">
                      {getLogDescription(log)}
                   </td>
@@ -272,8 +289,19 @@ export default function AuditLogsPage() {
             
             <div className="p-6 overflow-y-auto custom-scrollbar">
               <div className="mb-6 bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-start gap-4">
-                 <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm text-sm font-bold text-slate-700 border border-slate-100 shrink-0">
-                    {selectedLog.user?.username?.[0] || 'S'}
+                 {/* --- MODAL AVATAR LOGIC --- */}
+                 <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm text-sm font-bold text-slate-700 border border-slate-100 shrink-0 overflow-hidden relative">
+                    {selectedLog.user?.avatar && !imgErrors[selectedLog.id] ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img 
+                            src={getUrl(selectedLog.user.avatar)} 
+                            alt="User" 
+                            className="w-full h-full object-cover"
+                            onError={() => setImgErrors(prev => ({...prev, [selectedLog.id]: true}))}
+                        />
+                     ) : (
+                        selectedLog.user?.username?.[0] || <UserIcon className="w-5 h-5 text-slate-400" />
+                     )}
                  </div>
                  <div className="flex-1">
                     <p className="text-sm text-slate-800 leading-relaxed">
