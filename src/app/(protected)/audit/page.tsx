@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -5,20 +6,21 @@
 
 import { useState, useEffect } from 'react';
 import api from '@/app/services/api';
+// 1. Import Socket Context
+import { useSocket } from '@/app/contexts/SocketContext'; 
 import { 
-  History, Filter, Eye, ArrowRight, ShieldAlert, X, User as UserIcon
+  History, Filter, Eye, ArrowRight, ShieldAlert, X, User as UserIcon, LogIn, LogOut
 } from 'lucide-react';
 
-// --- HELPER: Construct Image URL ---
 const getUrl = (path: string | undefined) => {
   if (!path) return undefined;
   if (path.startsWith('http')) return path;
-  // Adjust this base URL if your backend runs on a different port/domain
   return `http://localhost:3001/${path.startsWith('/') ? path.slice(1) : path}`;
 };
 
 export default function AuditLogsPage() {
-  const [logs, setLogs] = useState([]);
+  const socket = useSocket(); // 2. Use Socket
+  const [logs, setLogs] = useState<any[]>([]); // Typed as array
   const [filters, setFilters] = useState({ 
     module: '', 
     userId: '', 
@@ -28,8 +30,6 @@ export default function AuditLogsPage() {
   });
   const [selectedLog, setSelectedLog] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  
-  // State to track broken images so we fall back to initials
   const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
 
   const fetchLogs = async () => {
@@ -50,10 +50,30 @@ export default function AuditLogsPage() {
 
   useEffect(() => {
     fetchLogs();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [filters]); // Re-fetch when filters change
 
-  // --- HELPER: Generate Text Description for Table ---
+  // --- 3. REAL-TIME LISTENER ---
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNewLog = (newLog: any) => {
+      // Logic: Only add if it matches current filters (optional, simpler to just add top)
+      setLogs((prevLogs) => [newLog, ...prevLogs]);
+    };
+
+    socket.on('audit_new_log', handleNewLog);
+
+    return () => {
+      socket.off('audit_new_log', handleNewLog);
+    };
+  }, [socket]);
+
+
+  // --- HELPER: Generate Text Description ---
   const getLogDescription = (log: any) => {
+    if (log.action === 'LOGIN') return <span className="text-emerald-600 font-semibold flex items-center gap-1"><LogIn className="w-3 h-3"/> User Logged In</span>;
+    if (log.action === 'LOGOUT') return <span className="text-slate-500 font-semibold flex items-center gap-1"><LogOut className="w-3 h-3"/> User Logged Out</span>;
+
     if (log.newValues?.reason) {
         return <span className="font-bold text-slate-700">Reason: "{log.newValues.reason}"</span>;
     }
@@ -111,7 +131,7 @@ export default function AuditLogsPage() {
   };
 
   return (
-    <div className="flex flex-col w-full h-[calc(97vh-4rem)] bg-slate-50 overflow-hidden relative">
+    <div className="flex flex-col w-full h-[calc(100vh-4rem)] bg-slate-50 overflow-hidden relative">
       
       {/* --- HEADER --- */}
       <div className="flex-none p-6 pb-2 z-10">
@@ -120,7 +140,7 @@ export default function AuditLogsPage() {
             <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
               <History className="text-slate-600 w-6 h-6" /> Audit Trail
             </h1>
-            <p className="text-sm text-slate-500 mt-1">Security log of all critical system changes.</p>
+            <p className="text-sm text-slate-500 mt-1">Real-time security log of system activities.</p>
           </div>
           
           <div className="flex flex-wrap gap-2 items-center bg-white p-1.5 rounded-lg border border-slate-200 shadow-sm">
@@ -130,10 +150,11 @@ export default function AuditLogsPage() {
               onChange={e => setFilters({...filters, module: e.target.value})}
             >
               <option value="">All Modules</option>
+              <option value="Auth">Login/Logout</option> {/* Added Auth */}
               <option value="Inventory">Inventory</option>
               <option value="Products">Products</option>
-              <option value="Sales">Sales</option>
-              <option value="Deliveries">Deliveries</option>
+              <option value="Users">Staff</option>
+              <option value="Delivery">Delivery</option>
             </select>
 
             <select 
@@ -142,6 +163,8 @@ export default function AuditLogsPage() {
               onChange={e => setFilters({...filters, action: e.target.value})}
             >
               <option value="">All Actions</option>
+              <option value="LOGIN">Login</option> {/* Added Login */}
+              <option value="LOGOUT">Logout</option> {/* Added Logout */}
               <option value="CREATE">Create</option>
               <option value="UPDATE">Update</option>
               <option value="DELETE">Delete</option>
@@ -174,7 +197,7 @@ export default function AuditLogsPage() {
                <button 
                  onClick={() => {
                    setFilters({ module: '', userId: '', action: '', startDate: '', endDate: '' });
-                   setTimeout(fetchLogs, 100); 
+                   // Don't need timeout if using useEffect on [filters]
                  }} 
                  className="px-3 py-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md text-sm transition-colors"
                >
@@ -203,10 +226,9 @@ export default function AuditLogsPage() {
               {loading ? (
                 <tr><td colSpan={6} className="p-12 text-center text-slate-400 animate-pulse">Scanning audit records...</td></tr>
               ) : logs.map((log: any) => (
-                <tr key={log.id} className="hover:bg-slate-50/80 transition-colors group">
+                <tr key={log.id} className="hover:bg-slate-50/80 transition-colors group animate-in slide-in-from-top-2 duration-300">
                   <td className="p-4 align-top">
                     <div className="flex items-center gap-3">
-                      {/* --- AVATAR LOGIC --- */}
                       <div className="w-9 h-9 bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-xs font-bold text-slate-600 shadow-sm overflow-hidden relative">
                          {log.user?.avatar && !imgErrors[log.id] ? (
                             /* eslint-disable-next-line @next/next/no-img-element */
@@ -228,8 +250,8 @@ export default function AuditLogsPage() {
                   </td>
                   <td className="p-4 align-top">
                     <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold border uppercase tracking-wider ${
-                      log.action === 'CREATE' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                      log.action === 'DELETE' ? 'bg-red-50 text-red-600 border-red-100' :
+                      log.action === 'CREATE' || log.action === 'LOGIN' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                      log.action === 'DELETE' || log.action === 'LOGOUT' ? 'bg-red-50 text-red-600 border-red-100' :
                       'bg-amber-50 text-amber-600 border-amber-100'
                     }`}>
                       {log.action}
@@ -248,7 +270,7 @@ export default function AuditLogsPage() {
 
                   <td className="p-4 text-slate-400 text-xs whitespace-nowrap align-top">
                     {new Date(log.createdAt).toLocaleString(undefined, { 
-                      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+                      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit'
                     })}
                   </td>
                   <td className="p-4 text-right align-top">
@@ -289,7 +311,6 @@ export default function AuditLogsPage() {
             
             <div className="p-6 overflow-y-auto custom-scrollbar">
               <div className="mb-6 bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-start gap-4">
-                 {/* --- MODAL AVATAR LOGIC --- */}
                  <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm text-sm font-bold text-slate-700 border border-slate-100 shrink-0 overflow-hidden relative">
                     {selectedLog.user?.avatar && !imgErrors[selectedLog.id] ? (
                         /* eslint-disable-next-line @next/next/no-img-element */
@@ -329,7 +350,7 @@ export default function AuditLogsPage() {
                      <div className="space-y-1">
                         {renderDiff(selectedLog.oldValues, selectedLog.newValues) || (
                            <div className="p-4 text-center text-slate-400 italic text-sm">
-                             No explicit field differences found (Metadata update only).
+                             No explicit field differences found.
                            </div>
                         )}
                      </div>
