@@ -72,17 +72,34 @@ export default function Header() {
   const [imgError, setImgError] = useState(false);
 
   // Sync with context and fetch fresh data from DB
-  useEffect(() => {
+useEffect(() => {
     if (user) {
-      setDisplayUser(user);
+      console.log("Header received user:", user.username); 
+      
+      // 1. Trust the Context (Token) first. It is the most reliable source.
+      setDisplayUser(user); 
       setImgError(false);
       
-      // Attempt to fetch latest profile data
-      api.get('/auth/profile')
+      // 2. Fetch extra details (Avatar) but PREVENT overwriting Identity
+      // Add ?t=${Date.now()} to prevent Browser Caching
+      api.get(`/auth/profile?t=${Date.now()}`) 
         .then(res => {
-            if (res.data) setDisplayUser((prev: any) => ({ ...prev, ...res.data }));
+            console.log("API Profile Data:", res.data); // Debug: See what API sends
+
+            if (res.data) {
+                setDisplayUser((prev: any) => ({
+                    ...prev,
+                    // Only update Avatar and non-critical fields
+                    avatar: res.data.avatar, 
+                    // OPTIONAL: Only update username if it's not null, 
+                    // but honestly, the Token is usually safer for identity.
+                    // Let's keep the Token's role/username to be safe.
+                    username: user.username, 
+                    role: user.role,
+                }));
+            }
         })
-        .catch(err => console.warn("Profile sync failed (endpoint might be missing):", err.message));
+        .catch(err => console.warn("Profile sync warning:", err.message));
     }
   }, [user]);
 

@@ -1,3 +1,5 @@
+/* eslint-disable react-hooks/immutability */
+ 
 "use client";
 
 import { useForm, FieldValues } from 'react-hook-form';
@@ -31,25 +33,64 @@ export default function LoginPage() {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
-  const onSubmit = async (data: FieldValues) => {
-    setIsLoading(true);
-    try {
-      setError(null);
-      const response = await api.post('/auth/login', {
-        username: data.username,
-        password: data.password,
-      });
-      const { access_token } = response.data;
-      if (access_token) {
-        login(access_token);
-      } else {
-        setIsLoading(false);
-      }
-    } catch (err) {
-      setError('Invalid username or password. Please try again.');
-      setIsLoading(false);
-    }
-  };
+    const onSubmit = async (data: FieldValues) => {
+        setIsLoading(true);
+        try {
+          setError(null);
+          
+          // 1. CLEAR EVERYTHING (Nuclear Option)
+          if (typeof window !== 'undefined') {
+              sessionStorage.clear();
+              localStorage.clear();
+          }
+
+          // 2. Perform Login
+          const response = await api.post('/auth/login', {
+            username: data.username,
+            password: data.password,
+          });
+
+          const { access_token } = response.data;
+
+          if (access_token) {
+            // 3. Save Token
+            sessionStorage.setItem('token', access_token);
+            
+            // 4. Update Context (Optional, as the reload will handle it)
+            login(access_token);
+
+            // 5. FORCE HARD RELOAD (The Fix)
+            // This destroys all React State variables from the previous user
+            window.location.href = '/dashboard'; 
+          } else {
+            setIsLoading(false);
+          }
+        } catch (err) {
+          console.error(err);
+          setError('Invalid username or password. Please try again.');
+          setIsLoading(false);
+        }
+      };
+
+  // const onSubmit = async (data: FieldValues) => {
+  //   setIsLoading(true);
+  //   try {
+  //     setError(null);
+  //     const response = await api.post('/auth/login', {
+  //       username: data.username,
+  //       password: data.password,
+  //     });
+  //     const { access_token } = response.data;
+  //     if (access_token) {
+  //       login(access_token);
+  //     } else {
+  //       setIsLoading(false);
+  //     }
+  //   } catch (err) {
+  //     setError('Invalid username or password. Please try again.');
+  //     setIsLoading(false);
+  //   }
+  // };
 
   return (
     <div className="min-h-screen w-full flex flex-col md:flex-row bg-white">

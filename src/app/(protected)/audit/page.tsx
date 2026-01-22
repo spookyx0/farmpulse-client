@@ -131,7 +131,7 @@ export default function AuditLogsPage() {
   };
 
   return (
-    <div className="flex flex-col w-full h-[calc(100vh-4rem)] bg-slate-50 overflow-hidden relative">
+    <div className="flex flex-col w-full h-[calc(95vh-4rem)] bg-slate-50 overflow-hidden relative">
       
       {/* --- HEADER --- */}
       <div className="flex-none p-6 pb-2 z-10">
