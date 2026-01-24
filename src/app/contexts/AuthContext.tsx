@@ -9,6 +9,7 @@ import {
   useCallback,
 } from 'react';
 import { useRouter } from 'next/navigation';
+import api from '@/app/services/api'; // <--- Ensure you import your API instance
 
 interface User {
   id: number;
@@ -54,13 +55,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const logout = useCallback(() => {
+  // --- UPDATED LOGOUT FUNCTION ---
+  const logout = useCallback(async () => {
     console.log("Logging out...");
-    if (typeof window !== 'undefined') {
-      sessionStorage.removeItem('token');
+    
+    try {
+      // 1. Tell backend to log the event
+      // We assume your 'api' service automatically attaches the current token header
+      await api.post('/auth/logout'); 
+    } catch (error) {
+      console.error("Logout log failed (backend might be down or token expired)", error);
+    } finally {
+      // 2. Clear session data and redirect (Always happens)
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('token'); // Using sessionStorage as requested
+      }
+      setUser(null);
+      router.push('/login');
     }
-    setUser(null);
-    router.push('/login');
   }, [router]);
 
   // Check token on mount

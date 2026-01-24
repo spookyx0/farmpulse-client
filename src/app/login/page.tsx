@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable react-hooks/immutability */
 "use client";
 
 import { useForm, FieldValues } from 'react-hook-form';
@@ -35,18 +37,45 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       setError(null);
+      
+      // 1. CLEAR EVERYTHING (Nuclear Option)
+      if (typeof window !== 'undefined') {
+          sessionStorage.clear();
+          localStorage.clear();
+      }
+
+      // 2. Perform Login
       const response = await api.post('/auth/login', {
         username: data.username,
         password: data.password,
       });
+
       const { access_token } = response.data;
+
       if (access_token) {
+        // 3. Save Token
+        sessionStorage.setItem('token', access_token);
+        
+        // 4. Update Context
         login(access_token);
+
+        // 5. FORCE HARD RELOAD
+        window.location.href = '/dashboard'; 
       } else {
         setIsLoading(false);
       }
-    } catch (err) {
-      setError('Invalid username or password. Please try again.');
+    } catch (err: any) {
+      //console.error(err);
+      
+      // --- FIX: DETECT SUSPENDED ACCOUNT ---
+      const serverMessage = err.response?.data?.message;
+      
+      if (serverMessage === 'Account is suspended. Contact Owner.') {
+          setError('Access denied. Please contact the administrator.');
+      } else {
+          setError('Invalid username or password. Please try again.');
+      }
+      
       setIsLoading(false);
     }
   };
@@ -124,9 +153,14 @@ export default function LoginPage() {
                 )}
               </div>
 
+              {/* ERROR MESSAGE DISPLAY */}
               {error && (
-                <div className="bg-red-50 text-red-600 text-sm p-4 rounded-xl border border-red-100 flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-red-500"></div>
+                <div className={`text-sm p-4 rounded-xl border flex items-center gap-2 ${
+                    error.includes('SUSPENDED') 
+                        ? 'bg-red-100 text-red-700 border-red-200 font-bold' 
+                        : 'bg-red-50 text-red-600 border-red-100'
+                }`}>
+                  <div className={`w-1.5 h-1.5 rounded-full ${error.includes('SUSPENDED') ? 'bg-red-700' : 'bg-red-500'}`}></div>
                   {error}
                 </div>
               )}
