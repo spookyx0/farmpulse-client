@@ -30,6 +30,7 @@ const ownerLinks: NavSection[] = [
       { href: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
       { href: '/branches', label: 'Branches', icon: <Store className="w-5 h-5" /> },
       { href: '/inventory', label: 'Inventory', icon: <Package className="w-5 h-5" /> },
+      { href: '/stock-requests', label: 'Stock Requests', icon: <ClipboardList className="w-5 h-5" /> },
       { href: '/deliveries', label: 'Deliveries', icon: <Truck className="w-5 h-5" /> },
       { href: '/expenses', label: 'Expenses', icon: <Banknote className="w-5 h-5" /> },
     ]
@@ -50,6 +51,7 @@ const staffLinks: NavSection[] = [
     items: [
       { href: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
       { href: '/sales', label: 'Sales Register', icon: <ShoppingCart className="w-5 h-5" /> },
+      { href: '/stock-requests', label: 'Stock Requests', icon: <ClipboardList className="w-5 h-5" /> },
       { href: '/inventory', label: 'Inventory', icon: <Package className="w-5 h-5" /> },
       { href: '/deliveries', label: 'Deliveries', icon: <Truck className="w-5 h-5" /> },
       { href: '/expenses', label: 'Expenses', icon: <Banknote className="w-5 h-5" /> },
