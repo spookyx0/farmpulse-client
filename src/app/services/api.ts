@@ -33,18 +33,30 @@ api.interceptors.request.use(
   },
 );
 
-// 3. Response Interceptor: Auto-Logout on 401
+// 3. Response Interceptor: Auto-Logout on 401 (With Logic Fix)
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    // FIX: Check if the error came from the Login Endpoint
+    // We use optional chaining and check if the URL includes 'login'
+    const isLoginRequest = error.config && error.config.url?.includes('/auth/login');
+
+    // Only trigger "Session Expired" logic if it is NOT a login request
+    if (error.response?.status === 401 && !isLoginRequest) {
       if (typeof window !== 'undefined') {
+        // Only log this for actual session expirations (e.g. Dashboard access)
         console.warn('Session expired. Logging out...');
         sessionStorage.removeItem('token');
-        // Optional: Force redirect
-        // window.location.href = '/login'; 
+        localStorage.removeItem('token'); 
+        
+        // Optional: Force redirect if user is not already on login page
+        if (window.location.pathname !== '/login') {
+            window.location.href = '/login';
+        }
       }
     }
+    
+    // Always return the error so the calling component (LoginPage) can handle it
     return Promise.reject(error);
   }
 );

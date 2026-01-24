@@ -65,7 +65,7 @@ export default function LoginPage() {
         setIsLoading(false);
       }
     } catch (err: any) {
-      console.error(err);
+      //console.error(err);
       
       // --- FIX: DETECT SUSPENDED ACCOUNT ---
       const serverMessage = err.response?.data?.message;
