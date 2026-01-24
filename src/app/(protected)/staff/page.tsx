@@ -6,8 +6,8 @@
 import { useState, useEffect } from 'react';
 import api from '@/app/services/api';
 import { 
-  Users, UserPlus, MapPin, Truck,  
-  Power, Search, Lock, Briefcase, Filter, X, Edit
+  Users, UserPlus, MapPin,  
+  Power, Search, Lock, Briefcase, Filter, Edit, AlertTriangle, ShieldAlert, CheckCircle
 } from 'lucide-react';
 import { useToast } from '@/app/contexts/ToastContext';
 import { Modal } from '@/app/components/ui/Modal'; 
@@ -23,10 +23,9 @@ interface User {
   username: string;
   fullName: string;
   role: 'OWNER' | 'STAFF' | 'LIVE_CHICKEN' | 'FREEZER_VAN';
-  branchId?: number; // Maps to branch_id in backend
+  branchId?: number; 
   branch?: Branch;
   isActive: boolean;
-  lastLogin?: string;
 }
 
 export default function StaffManagementPage() {
@@ -41,10 +40,14 @@ export default function StaffManagementPage() {
   const [search, setSearch] = useState('');
   const [filterBranch, setFilterBranch] = useState<string>('ALL');
 
-  // Modal State
+  // Edit/Create Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+
+  // SUSPEND MODAL STATE (New)
+  const [suspendModalOpen, setSuspendModalOpen] = useState(false);
+  const [userToToggle, setUserToToggle] = useState<User | null>(null);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -59,7 +62,6 @@ export default function StaffManagementPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      // We pass branch_id as a query param if a specific branch is selected
       const userParams = filterBranch !== 'ALL' ? { branch_id: filterBranch } : {};
       
       const [usersRes, branchesRes] = await Promise.all([
@@ -77,7 +79,6 @@ export default function StaffManagementPage() {
     }
   };
 
-  // Re-fetch when branch filter changes
   useEffect(() => {
     fetchData();
   }, [filterBranch]);
@@ -89,10 +90,9 @@ export default function StaffManagementPage() {
       setSelectedUser(user);
       setFormData({
         username: user.username,
-        password: '', // Empty means no change for Patch
+        password: '', 
         fullName: user.fullName || '',
         role: user.role,
-        // Backend uses branch_id, but JS object uses branchId
         branchId: user.branchId ? String(user.branchId) : (branches[0]?.id.toString() || ''),
       });
     } else {
@@ -112,57 +112,52 @@ export default function StaffManagementPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // 1. Prepare Payload
       const payload: any = { 
         username: formData.username,
         fullName: formData.fullName,
         role: formData.role,
-        // Send 'branch_id' (snake_case) for the backend
-        branch_id: formData.role === 'OWNER' ? null : Number(formData.branchId)
+        branch_id: formData.role === 'OWNER' ? null : Number(formData.branchId) 
       };
-
-      // 2. Handle Edit vs Create
+      
       if (isEditMode && selectedUser) {
-        if (formData.password) payload.password = formData.password;
-        
-        // Debug Log
-        console.log("Sending Update:", payload);
-        
+        if (!payload.password || payload.password.trim() === '') delete payload.password;
         await api.patch(`/users/${selectedUser.id}`, payload);
         showToast("Staff updated successfully", "success");
       } else {
-        if (!formData.password) {
-            showToast("Password is required", "error");
+        if (!payload.password) {
+            showToast("Password is required for new users", "error");
             return;
         }
-        payload.password = formData.password;
         await api.post('/users', payload);
         showToast("New staff created successfully", "success");
       }
-      
       setIsModalOpen(false);
-      fetchData(); // Refresh list to see changes
+      fetchData();
     } catch (error: any) {
-      console.error(error);
-      showToast("Operation failed", "error");
+      showToast(error.response?.data?.message || "Operation failed", "error");
     }
   };
 
-  const toggleStatus = async (user: User) => {
-    const action = user.isActive ? 'DEACTIVATE' : 'ACTIVATE';
-    
-    if (!confirm(`Confirm: ${action} access for ${user.username}?`)) return;
-    
+  // 1. STEP ONE: Open the Confirmation Modal
+  const initiateStatusToggle = (user: User) => {
+    setUserToToggle(user);
+    setSuspendModalOpen(true);
+  };
+
+  // 2. STEP TWO: Actually Call the API
+  const confirmStatusToggle = async () => {
+    if (!userToToggle) return;
+
     try {
-      // Calls PATCH /users/:id/status
-      await api.patch(`/users/${user.id}/status`);
-      
-      showToast(`User ${user.isActive ? 'suspended' : 'activated'}`, "success");
-      
-      // CRITICAL: Refresh the list immediately to show the red/green dot change
-      fetchData(); 
+      await api.patch(`/users/${userToToggle.id}/status`);
+      showToast(
+        `Account ${userToToggle.isActive ? 'suspended' : 'activated'} successfully`, 
+        "success"
+      );
+      setSuspendModalOpen(false);
+      setUserToToggle(null);
+      fetchData(); // Refresh table
     } catch (error) {
-      console.error(error);
       showToast("Failed to update status", "error");
     }
   };
@@ -176,7 +171,7 @@ export default function StaffManagementPage() {
   return (
     <div className="p-6 space-y-6 bg-slate-50 min-h-screen">
       
-      {/* 1. HEADER SECTION */}
+      {/* HEADER SECTION */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
@@ -194,7 +189,7 @@ export default function StaffManagementPage() {
         </button>
       </div>
 
-      {/* 2. FILTERS BAR */}
+      {/* FILTERS BAR */}
       <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-4 items-center justify-between">
         <div className="relative w-full md:w-96">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -222,7 +217,7 @@ export default function StaffManagementPage() {
         </div>
       </div>
 
-      {/* 3. STAFF TABLE */}
+      {/* STAFF TABLE */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <table className="w-full text-sm text-left">
           <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase text-xs tracking-wider">
@@ -289,7 +284,8 @@ export default function StaffManagementPage() {
                       </button>
                       {user.role !== 'OWNER' && (
                         <button 
-                            onClick={() => toggleStatus(user)}
+                            // CHANGED: Calls the modal opener instead of direct API
+                            onClick={() => initiateStatusToggle(user)}
                             className={`p-1.5 rounded transition-colors ${
                                 user.isActive 
                                     ? 'text-slate-400 hover:text-red-600 hover:bg-red-50' 
@@ -307,6 +303,61 @@ export default function StaffManagementPage() {
           </tbody>
         </table>
       </div>
+
+      {/* --- CONFIRMATION MODAL FOR SUSPEND/ACTIVATE --- */}
+      <Modal
+        isOpen={suspendModalOpen}
+        onClose={() => setSuspendModalOpen(false)}
+        title={userToToggle?.isActive ? "Security: Suspend Account?" : "Restore Access?"}
+      >
+        <div className="space-y-4">
+            {/* Warning Icon & Message */}
+            <div className={`p-4 rounded-lg flex gap-4 ${
+                userToToggle?.isActive ? 'bg-red-50 border border-red-100' : 'bg-emerald-50 border border-emerald-100'
+            }`}>
+                <div className={`p-2 rounded-full h-fit ${
+                    userToToggle?.isActive ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'
+                }`}>
+                    {userToToggle?.isActive ? <ShieldAlert className="w-6 h-6" /> : <CheckCircle className="w-6 h-6" />}
+                </div>
+                <div>
+                    <h4 className={`font-bold ${
+                        userToToggle?.isActive ? 'text-red-800' : 'text-emerald-800'
+                    }`}>
+                        {userToToggle?.isActive ? 'Warning: You are about to lock this account.' : 'You are activating this account.'}
+                    </h4>
+                    <p className={`text-sm mt-1 ${
+                        userToToggle?.isActive ? 'text-red-600' : 'text-emerald-700'
+                    }`}>
+                        {userToToggle?.isActive 
+                            ? `User "${userToToggle?.username}" will be immediately logged out and blocked from accessing the system.`
+                            : `User "${userToToggle?.username}" will regain access to the dashboard and assigned branch.`
+                        }
+                    </p>
+                </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-end gap-3 pt-2">
+                <button 
+                    onClick={() => setSuspendModalOpen(false)}
+                    className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                    Cancel
+                </button>
+                <button 
+                    onClick={confirmStatusToggle}
+                    className={`px-4 py-2 text-sm font-bold text-white rounded-lg shadow-md transition-all active:scale-95 ${
+                        userToToggle?.isActive 
+                            ? 'bg-red-600 hover:bg-red-700' 
+                            : 'bg-emerald-600 hover:bg-emerald-700'
+                    }`}
+                >
+                    {userToToggle?.isActive ? 'Confirm Suspension' : 'Activate Account'}
+                </button>
+            </div>
+        </div>
+      </Modal>
 
       {/* --- ADD/EDIT MODAL --- */}
       <Modal 
