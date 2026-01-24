@@ -10,8 +10,8 @@ import { ToastProvider } from './contexts/ToastContext';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'FarmPulse System',
-  description: 'FarmPulse Business Management',
+  title: 'LSB Store',
+  description: 'LSB Store is a platform for managing your business. It allows you to track your inventory, track your sales, and track business.',
 };
 
 export default function RootLayout({
