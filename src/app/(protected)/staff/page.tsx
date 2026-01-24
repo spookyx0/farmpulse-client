@@ -112,47 +112,58 @@ export default function StaffManagementPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // Logic: Explicitly map branch_id for the backend
+      // 1. Prepare Payload
       const payload: any = { 
         username: formData.username,
         fullName: formData.fullName,
         role: formData.role,
-        password: formData.password,
-        branch_id: formData.role === 'OWNER' ? null : Number(formData.branchId) 
+        // Send 'branch_id' (snake_case) for the backend
+        branch_id: formData.role === 'OWNER' ? null : Number(formData.branchId)
       };
-      
+
+      // 2. Handle Edit vs Create
       if (isEditMode && selectedUser) {
-        // Only send password if user typed a new one
-        if (!payload.password || payload.password.trim() === '') delete payload.password;
+        if (formData.password) payload.password = formData.password;
+        
+        // Debug Log
+        console.log("Sending Update:", payload);
         
         await api.patch(`/users/${selectedUser.id}`, payload);
         showToast("Staff updated successfully", "success");
       } else {
-        if (!payload.password) {
-            showToast("Password is required for new users", "error");
+        if (!formData.password) {
+            showToast("Password is required", "error");
             return;
         }
+        payload.password = formData.password;
         await api.post('/users', payload);
         showToast("New staff created successfully", "success");
       }
+      
       setIsModalOpen(false);
-      fetchData();
+      fetchData(); // Refresh list to see changes
     } catch (error: any) {
-      showToast(error.response?.data?.message || "Operation failed", "error");
+      console.error(error);
+      showToast("Operation failed", "error");
     }
   };
 
   const toggleStatus = async (user: User) => {
-    // THE KILL SWITCH
     const action = user.isActive ? 'DEACTIVATE' : 'ACTIVATE';
-    if (!confirm(`SECURITY OVERRIDE: Are you sure you want to ${action} account "${user.username}"?`)) return;
+    
+    if (!confirm(`Confirm: ${action} access for ${user.username}?`)) return;
     
     try {
+      // Calls PATCH /users/:id/status
       await api.patch(`/users/${user.id}/status`);
-      showToast(`Account successfully ${user.isActive ? 'suspended' : 'enabled'}`, "success");
-      fetchData();
+      
+      showToast(`User ${user.isActive ? 'suspended' : 'activated'}`, "success");
+      
+      // CRITICAL: Refresh the list immediately to show the red/green dot change
+      fetchData(); 
     } catch (error) {
-      showToast("Failed to toggle account status", "error");
+      console.error(error);
+      showToast("Failed to update status", "error");
     }
   };
 
