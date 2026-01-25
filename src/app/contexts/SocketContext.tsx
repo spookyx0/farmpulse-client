@@ -5,7 +5,7 @@ import { io, Socket } from 'socket.io-client';
 import { useAuth } from './AuthContext';
 
 const SocketContext = createContext<Socket | null>(null);
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL;
+const url = process.env.NEXT_PUBLIC_SOCKET_URL;
 
 export const useSocket = () => {
   return useContext(SocketContext);
