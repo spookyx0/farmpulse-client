@@ -5,6 +5,7 @@ import { io, Socket } from 'socket.io-client';
 import { useAuth } from './AuthContext';
 
 const SocketContext = createContext<Socket | null>(null);
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL;
 
 export const useSocket = () => {
   return useContext(SocketContext);
@@ -16,7 +17,7 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (isAuthenticated) {
-      const newSocket = io('http://localhost:3001');
+     const newSocket = io(SOCKET_URL);
 
       // FIX: Only set the socket in state AFTER it connects
       newSocket.on('connect', () => {
