@@ -84,8 +84,8 @@ interface FVSummary {
 }
 
 interface LCSummary {
-  inventoryReport: { heads: number; kilos: number };
-  distributionReport: { heads: number; kilos: number };
+  inventoryReport: { heads: number; kilos: number; crates: number };
+  distributionReport: { heads: number; kilos: number; crates: number };
   salesReport: { totalSales: number; costOfSales: number; netSales: number };
 }
 
@@ -602,86 +602,171 @@ export default function DashboardPage() {
   }
 
   // --- RENDER: LIVE CHICKEN ---
-  if (user?.role === 'LIVE_CHICKEN' && lcSummary) {
+if (user?.role === 'LIVE_CHICKEN' && lcSummary) {
+    // Financial Data for the Pie Chart
     const salesData = [
-      { name: 'Net Sales', value: lcSummary.salesReport.netSales },
-      { name: 'Cost', value: lcSummary.salesReport.costOfSales },
+      { name: 'Net Profit', value: lcSummary.salesReport.netSales },
+      { name: 'Operating Cost', value: lcSummary.salesReport.costOfSales },
     ];
-    return (
-      <div className="w-full pb-10 animate-in fade-in slide-in-from-bottom-2 duration-500">
-        <DashboardHeader title="Live Chicken Ops" subtitle="Inventory & Distribution" badgeText="Logistics" badgeColor="amber" />
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <KPICard title="Total Inventory" value={`${lcSummary.inventoryReport.heads} Heads`} icon={<Package className="w-5 h-5"/>} color="amber" subtitle={`${lcSummary.inventoryReport.kilos.toFixed(2)} kg`} />
-            <KPICard title="Distributed" value={`${lcSummary.distributionReport.heads} Heads`} icon={<Truck className="w-5 h-5"/>} color="blue" subtitle={`${lcSummary.distributionReport.kilos.toFixed(2)} kg`} />
-            <KPICard title="Net Sales" value={`₱${lcSummary.salesReport.netSales.toLocaleString()}`} icon={<DollarSign className="w-5 h-5"/>} color="emerald" />
+    // Synchronization: Calculating current available stock from summary
+    const remainingHeads = lcSummary.inventoryReport.heads - lcSummary.distributionReport.heads;
+    const distributionRate = (lcSummary.distributionReport.heads / lcSummary.inventoryReport.heads) * 100;
+
+    return (
+      <div className="w-full pb-10 animate-in fade-in slide-in-from-bottom-2 duration-700 space-y-8">
+        {/* --- HEADER --- */}
+        <DashboardHeader 
+          title="Live Chicken Operations" 
+          subtitle="Real-time Logistics & Financial Overview" 
+          badgeText="Operational Live" 
+          badgeColor="blue" 
+        />
+
+        {/* --- TOP LEVEL KPI GRID --- */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <KPICard 
+            title="Current Stock" 
+            value={`${remainingHeads.toLocaleString()} Heads`} 
+            icon={<Package className="w-5 h-5"/>} 
+            color="amber" 
+            subtitle={`Total In: ${lcSummary.inventoryReport.heads}`}
+          />
+          <KPICard 
+            title="Total Dispatched" 
+            value={`${lcSummary.distributionReport.heads.toLocaleString()} Heads`} 
+            icon={<Truck className="w-5 h-5"/>} 
+            color="blue" 
+            subtitle={`${lcSummary.distributionReport.kilos.toFixed(2)} kg Moved`}
+          />
+          <KPICard 
+            title="Gross Revenue" 
+            value={`₱${lcSummary.salesReport.totalSales.toLocaleString()}`} 
+            icon={<TrendingUp className="w-5 h-5"/>} 
+            color="emerald" 
+            subtitle="Before expenses"
+          />
+          <KPICard 
+            title="Net Profit" 
+            value={`₱${lcSummary.salesReport.netSales.toLocaleString()}`} 
+            icon={<DollarSign className="w-5 h-5"/>} 
+            color="slate" 
+            subtitle={`${((lcSummary.salesReport.netSales / lcSummary.salesReport.totalSales) * 100).toFixed(1)}% Margin`}
+          />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <Card className="flex flex-col shadow-sm border border-slate-200">
-               <div className="p-6 border-b border-slate-100">
-                  <h3 className="font-bold text-slate-800">Financial Ratio</h3>
-                  <p className="text-sm text-slate-500">Sales vs Cost of Goods</p>
-               </div>
-               <div className="p-6 h-80 relative">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                        <Pie 
-                            data={salesData} 
-                            cx="50%" cy="50%" 
-                            innerRadius={80} 
-                            outerRadius={100} 
-                            paddingAngle={5} 
-                            dataKey="value"
-                        >
-                            <Cell fill="#10b981" strokeWidth={0} /> 
-                            <Cell fill="#f43f5e" strokeWidth={0} /> 
-                        </Pie>
-                        <Tooltip content={<CustomTooltip />} />
-                        <Legend verticalAlign="bottom" height={36} iconType="circle" />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-8">
-                     <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Margin</p>
-                     <p className="text-2xl font-bold text-slate-800 mt-1">
-                       {lcSummary.salesReport.totalSales > 0 
-                         ? ((lcSummary.salesReport.netSales / lcSummary.salesReport.totalSales) * 100).toFixed(1) 
-                         : 0}%
-                     </p>
-                  </div>
-               </div>
-            </Card>
+        {/* --- MIDDLE SECTION: ANALYTICS & STATUS --- */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          
+          {/* 1. STOCK EFFICIENCY & REMAINING BAR */}
+          <Card className="lg:col-span-2 flex flex-col shadow-sm border-slate-200 overflow-hidden">
+            <div className="p-6 border-b border-slate-100 bg-white flex justify-between items-center">
+              <div>
+                <h3 className="font-bold text-slate-800">Inventory Liquidity</h3>
+                <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">Distribution vs. Stock On-Hand</p>
+              </div>
+              <div className="text-right">
+                <span className="text-2xl font-black text-blue-600">{distributionRate.toFixed(1)}%</span>
+                <p className="text-[10px] text-slate-400 font-bold uppercase">Sold Rate</p>
+              </div>
+            </div>
+            <div className="p-8 space-y-8">
+              {/* Heads Sync Visualization */}
+              <div className="space-y-3">
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="font-bold text-slate-600">Heads Distribution Status</span>
+                  <span className="text-slate-500 font-medium">{lcSummary.distributionReport.heads} / {lcSummary.inventoryReport.heads} Units</span>
+                </div>
+                <div className="w-full h-4 bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
+                  <div 
+                    className="h-full bg-blue-500 transition-all duration-1000 ease-out" 
+                    style={{ width: `${distributionRate}%` }}
+                  />
+                </div>
+              </div>
 
-            <Card className="flex flex-col shadow-sm border border-slate-200">
-               <div className="p-6 border-b border-slate-100 bg-amber-50/30">
-                  <h3 className="font-bold text-slate-800">Operational Report</h3>
-               </div>
-               <div className="p-6 space-y-6">
-                  <div className="flex justify-between items-center p-4 bg-slate-50 rounded-xl border border-slate-100">
-                     <div className="flex items-center gap-3">
-                        <Package className="text-slate-400 w-5 h-5" />
-                        <span className="text-slate-600 font-medium">Inventory Weight</span>
-                     </div>
-                     <span className="font-bold text-slate-800 text-lg">{lcSummary.inventoryReport.kilos.toFixed(2)} kg</span>
-                  </div>
-                  
-                  <div className="space-y-3 pt-2">
-                     <div className="flex justify-between items-center">
-                        <span className="text-slate-500">Gross Sales</span>
-                        <span className="font-bold text-slate-800">₱{lcSummary.salesReport.totalSales.toLocaleString()}</span>
-                     </div>
-                     <div className="flex justify-between items-center">
-                        <span className="text-slate-500">Cost of Sales</span>
-                        <span className="font-bold text-rose-500">-₱{lcSummary.salesReport.costOfSales.toLocaleString()}</span>
-                     </div>
-                     <div className="h-px bg-slate-100 my-2"></div>
-                     <div className="flex justify-between items-center">
-                        <span className="text-slate-800 font-bold">Net Profit</span>
-                        <span className="font-bold text-emerald-600 text-xl">₱{lcSummary.salesReport.netSales.toLocaleString()}</span>
-                     </div>
-                  </div>
-               </div>
-            </Card>
+              {/* Weight Sync Visualization */}
+              <div className="space-y-3">
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="font-bold text-slate-600">Weight Utilization (kg)</span>
+                  <span className="text-slate-500 font-medium">
+                    {(lcSummary.inventoryReport.kilos - lcSummary.distributionReport.kilos).toFixed(2)}kg Remaining
+                  </span>
+                </div>
+                <div className="w-full h-4 bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
+                  <div 
+                    className="h-full bg-amber-500 transition-all duration-1000 ease-out" 
+                    style={{ width: `${(lcSummary.distributionReport.kilos / lcSummary.inventoryReport.kilos * 100)}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 pt-4">
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Available Crates</p>
+                  <p className="text-xl font-bold text-slate-800">
+                    {(Number(lcSummary.inventoryReport.crates || 0) - Number(lcSummary.distributionReport.crates || 0)).toLocaleString()}
+                  </p>
+                </div>
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Avg. Weight/Head</p>
+                  <p className="text-xl font-bold text-slate-800">
+                    {(lcSummary.inventoryReport.kilos / lcSummary.inventoryReport.heads).toFixed(2)} kg
+                  </p>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* 2. FINANCIAL RATIO (PIE) */}
+          <Card className="flex flex-col shadow-sm border border-slate-200">
+            <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+              <h3 className="font-bold text-slate-800 text-center">Profitability Ratio</h3>
+            </div>
+            <div className="p-6 h-72 relative">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie 
+                    data={salesData} 
+                    cx="50%" cy="50%" 
+                    innerRadius={70} 
+                    outerRadius={90} 
+                    paddingAngle={8} 
+                    dataKey="value"
+                  >
+                    <Cell fill="#10b981" strokeWidth={0} /> {/* Profit */}
+                    <Cell fill="#f43f5e" strokeWidth={0} /> {/* Cost */}
+                  </Pie>
+                  <Tooltip content={<CustomTooltip />} />
+                  <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-8">
+                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Net Margin</p>
+                <p className="text-3xl font-black text-slate-900 mt-1">
+                  {lcSummary.salesReport.totalSales > 0 
+                    ? ((lcSummary.salesReport.netSales / lcSummary.salesReport.totalSales) * 100).toFixed(1) 
+                    : 0}%
+                </p>
+              </div>
+            </div>
+            
+            <div className="px-6 pb-8 space-y-3">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-slate-500 font-medium">Gross Profit</span>
+                <span className="font-bold text-slate-800 text-base">₱{lcSummary.salesReport.totalSales.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-slate-500 font-medium">Cost of Sales</span>
+                <span className="font-bold text-rose-500">-₱{lcSummary.salesReport.costOfSales.toLocaleString()}</span>
+              </div>
+              <div className="h-px bg-slate-100 my-2"></div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-900 font-black text-xs uppercase tracking-tight">Final Settlement</span>
+                <span className="font-black text-emerald-600 text-xl">₱{lcSummary.salesReport.netSales.toLocaleString()}</span>
+              </div>
+            </div>
+          </Card>
         </div>
       </div>
     );
