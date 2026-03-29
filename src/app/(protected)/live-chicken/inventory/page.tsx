@@ -1,19 +1,28 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import api from '../../../services/api';
 import { useToast } from '../../../contexts/ToastContext';
 import { 
   Package, Search, Plus, Calendar, User, 
   Egg, Scale, DollarSign, Pencil, Trash2, X, 
-  ArrowUpRight, Activity, Box
+  ArrowUpRight, Activity, Box, ListFilter
 } from 'lucide-react';
+import DeleteConfirmModal from '../../../components/modals/DeleteConfirmModal';
 
+// --- OPTIONS FOR PARTICULARS ---
+const PARTICULARS_OPTIONS = [
+  "Whole Chicken", "Intestine", "Liver", "Gizzard", "Spleen", "Feet", "Fats"
+];
+
+// --- INTERFACES ---
 interface LCInventory {
   id: number;
   date: string;
   supplier: string;
+  particulars: string;
   crates: number;
   heads: number;
   kilos: number;
@@ -23,6 +32,7 @@ interface LCInventory {
 interface LCInventoryFormData {
   date: string;
   supplier: string;
+  particulars: string;
   crates: string;
   heads: string;
   kilos: string;
@@ -35,23 +45,59 @@ export default function LiveChickenInventoryPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<number | null>(null);
   
-  const { register, handleSubmit, reset, setValue } = useForm<LCInventoryFormData>();
+  const { register, handleSubmit, reset, setValue, watch } = useForm<LCInventoryFormData>({
+    defaultValues: { particulars: "Whole Chicken" }
+  });
+
+  // Watch particulars to handle "Heads" and "Crates" logic
+  const selectedParticular = watch("particulars");
+  const isParticular = selectedParticular !== "Whole Chicken";
 
   const fetchItems = () => {
     api.get<LCInventory[]>('/live-chicken/inventory')
       .then((res) => setItems(res.data))
-      .catch((err) => console.error(err));
+      .catch((err) => console.error("Fetch Error:", err));
   };
 
   useEffect(() => { fetchItems(); }, []);
 
+  // --- DELETE LOGIC ---
+  const openDeleteModal = (id: number) => {
+    setItemToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!itemToDelete) return;
+    setIsLoading(true);
+    try {
+      await api.delete(`/live-chicken/inventory/${itemToDelete}`);
+      showToast('Inventory record permanently removed.', 'success');
+      fetchItems();
+    } catch (error) {
+      showToast('Failed to remove record.', 'error');
+    } finally {
+      setIsLoading(false);
+      setIsDeleteModalOpen(false);
+      setItemToDelete(null);
+    }
+  };
+
+  // --- FORM SUBMISSION ---
   const onSubmit = async (data: LCInventoryFormData) => {
     setIsLoading(true);
+
+    // Logic: If it's a part, both heads and crates are forced to 0
     const payload = {
-      ...data,
-      crates: Number(data.crates),
-      heads: Number(data.heads),
+      date: data.date,
+      supplier: data.supplier || "Direct",
+      particulars: data.particulars,
+      crates: isParticular ? 0 : Number(data.crates),
+      heads: isParticular ? 0 : Number(data.heads),
       kilos: Number(data.kilos),
       amount: Number(data.amount),
     };
@@ -59,28 +105,17 @@ export default function LiveChickenInventoryPage() {
     try {
       if (editingId) {
         await api.put(`/live-chicken/inventory/${editingId}`, payload);
-        showToast('Inventory updated successfully!', 'success');
+        showToast('Stock record updated!', 'success');
       } else {
         await api.post('/live-chicken/inventory', payload);
-        showToast('Inventory added successfully!', 'success');
+        showToast('New stock posted to ledger!', 'success');
       }
       handleCancelEdit();
       fetchItems();
     } catch (error) {
-      showToast(editingId ? 'Failed to update.' : 'Failed to add.', 'error');
+      showToast(editingId ? 'Update failed.' : 'Post failed.', 'error');
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const onDelete = async (id: number) => {
-    if (!confirm("Are you sure you want to delete this record?")) return;
-    try {
-      await api.delete(`/live-chicken/inventory/${id}`);
-      showToast('Record deleted.', 'success');
-      fetchItems();
-    } catch (error) {
-      showToast('Failed to delete.', 'error');
     }
   };
 
@@ -88,150 +123,174 @@ export default function LiveChickenInventoryPage() {
     setEditingId(item.id);
     setValue('date', item.date);
     setValue('supplier', item.supplier);
+    setValue('particulars', item.particulars || "Whole Chicken");
     setValue('crates', item.crates.toString());
     setValue('heads', item.heads.toString());
     setValue('kilos', item.kilos.toString());
     setValue('amount', item.amount.toString());
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleCancelEdit = () => {
     setEditingId(null);
-    reset();
+    reset({ particulars: "Whole Chicken" });
   };
 
   const filteredItems = items.filter(item =>
     item.supplier?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.particulars?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.date.includes(searchTerm)
   );
 
-  // --- KPI CALCULATIONS ---
-  const totalHeads = items.reduce((sum, item) => sum + Number(item.heads), 0);
-  const totalCrates = items.reduce((sum, item) => sum + Number(item.crates || 0), 0);
-  const totalKilos = items.reduce((sum, item) => sum + Number(item.kilos), 0);
-  const avgWeight = totalHeads > 0 ? (totalKilos / totalHeads).toFixed(2) : "0.00";
+  const stats = useMemo(() => {
+    const heads = items.reduce((sum, item) => sum + Number(item.heads || 0), 0);
+    const kilos = items.reduce((sum, item) => sum + Number(item.kilos || 0), 0);
+    const crates = items.reduce((sum, item) => sum + Number(item.crates || 0), 0);
+    const avg = heads > 0 ? (kilos / heads).toFixed(2) : "0.00";
+    return { heads, kilos, crates, avg };
+  }, [items]);
 
   return (
     <div className="h-screen w-full bg-slate-50 text-slate-900 font-sans flex flex-col overflow-hidden selection:bg-amber-100 selection:text-amber-900">
       
-      {/* --- TOP NAVBAR & KPIs --- */}
+      {/* --- HEADER --- */}
       <header className="shrink-0 bg-white border-b border-slate-200 px-6 py-5 flex flex-col lg:flex-row lg:items-center justify-between gap-6 z-20 shadow-sm">
-        <div>
-          <div className="flex items-center gap-3 mb-1">
-            <div className="p-2.5 bg-amber-500 rounded-xl shadow-sm border border-amber-600/20">
-              <Package className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900 leading-none mb-1.5">Live Chicken Inventory</h1>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Central Storage Terminal</p>
-            </div>
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-amber-500 rounded-xl shadow-sm border border-amber-600/20">
+            <Package className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 leading-none mb-1.5">Live Chicken Inventory</h1>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Inventory & Particulars Terminal</p>
           </div>
         </div>
 
-        {/* --- KPI METRICS --- */}
         <div className="flex gap-4 overflow-x-auto pb-2 lg:pb-0 hide-scrollbar">
-          {/* Total Crates */}
-          <div className="bg-slate-50 min-w-[130px] p-4 rounded-2xl border border-slate-200 flex flex-col justify-between">
-            <div className="flex items-center gap-2 text-slate-500 mb-2">
-              <Box className="w-4 h-4" />
-              <p className="text-[10px] font-bold uppercase tracking-widest">Total Crates</p>
+          {[
+            { label: 'Total Crates', val: stats.crates, icon: Box, color: 'text-slate-900' },
+            { label: 'Total Heads', val: stats.heads, icon: Egg, color: 'text-slate-900' },
+            { label: 'Total Weight', val: `${stats.kilos.toLocaleString()} kg`, icon: Scale, color: 'text-slate-900' },
+            { label: 'Avg Weight', val: `${stats.avg} kg/b`, icon: Activity, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200' }
+          ].map((kpi, i) => (
+            <div key={i} className={`${kpi.bg || 'bg-slate-50'} min-w-[130px] p-4 rounded-2xl border ${kpi.border || 'border-slate-200'} flex flex-col justify-between shadow-sm`}>
+              <div className="flex items-center gap-2 text-slate-500 mb-2">
+                <kpi.icon className="w-4 h-4" />
+                <p className="text-[10px] font-bold uppercase tracking-widest">{kpi.label}</p>
+              </div>
+              <p className={`text-2xl font-black ${kpi.color} tabular-nums leading-none`}>{kpi.val}</p>
             </div>
-            <p className="text-2xl font-black text-slate-900 tabular-nums leading-none">{totalCrates.toLocaleString()}</p>
-          </div>
-          
-          {/* Total Heads (Added) */}
-          <div className="bg-slate-50 min-w-[130px] p-4 rounded-2xl border border-slate-200 flex flex-col justify-between">
-            <div className="flex items-center gap-2 text-slate-500 mb-2">
-              <Egg className="w-4 h-4" />
-              <p className="text-[10px] font-bold uppercase tracking-widest">Total Heads</p>
-            </div>
-            <p className="text-2xl font-black text-slate-900 tabular-nums leading-none">{totalHeads.toLocaleString()}</p>
-          </div>
-          
-          {/* Total Weight */}
-          <div className="bg-slate-50 min-w-[130px] p-4 rounded-2xl border border-slate-200 flex flex-col justify-between">
-            <div className="flex items-center gap-2 text-slate-500 mb-2">
-              <Scale className="w-4 h-4" />
-              <p className="text-[10px] font-bold uppercase tracking-widest">Total Weight</p>
-            </div>
-            <p className="text-2xl font-black text-slate-900 tabular-nums leading-none">
-                {totalKilos.toLocaleString()} <span className="text-xs text-slate-400">kg</span>
-            </p>
-          </div>
-
-          {/* Average Weight */}
-          <div className="bg-amber-50 min-w-[130px] p-4 rounded-2xl border border-amber-200 flex flex-col justify-between">
-            <div className="flex items-center gap-2 text-amber-700 mb-2">
-              <Activity className="w-4 h-4" />
-              <p className="text-[10px] font-bold uppercase tracking-widest">Avg Weight</p>
-            </div>
-            <p className="text-2xl font-black text-amber-600 tabular-nums leading-none">
-                {avgWeight} <span className="text-xs font-semibold">kg/b</span>
-            </p>
-          </div>
+          ))}
         </div>
       </header>
 
-      {/* --- MAIN WORKSPACE --- */}
       <main className="flex-1 flex flex-col xl:flex-row overflow-hidden">
-        
-        {/* LEFT: ENTRY FORM */}
-        <aside className="xl:w-[400px] shrink-0 border-r border-slate-200 bg-white overflow-y-auto z-10 custom-scrollbar">
-          <div className="p-6 lg:p-8">
-            <div className={`rounded-2xl shadow-sm border transition-all duration-300 ${editingId ? 'border-amber-400 ring-4 ring-amber-50 bg-amber-50/10' : 'border-slate-200 bg-white'}`}>
-              <div className={`px-6 py-5 border-b rounded-t-2xl flex items-center justify-between ${editingId ? 'bg-amber-50 border-amber-100' : 'bg-slate-50 border-slate-100'}`}>
-                  <h2 className="text-sm font-bold tracking-wide flex items-center gap-2 text-slate-800">
-                    {editingId ? <><Pencil className="w-4 h-4 text-amber-600"/> Update Record</> : <><Plus className="w-4 h-4 text-slate-500"/> Register Stock</>}
-                  </h2>
-                  {editingId && (
-                    <button onClick={handleCancelEdit} className="p-1 text-slate-400 hover:text-slate-600 hover:bg-white rounded-md transition-colors"><X className="w-5 h-5" /></button>
-                  )}
+        {/* FORM SIDEBAR */}
+        <aside className="xl:w-[400px] shrink-0 border-r border-slate-200 bg-white overflow-y-auto custom-scrollbar z-10">
+          <div className="p-6">
+            <div className={`rounded-2xl border transition-all duration-300 ${editingId ? 'border-amber-400 ring-4 ring-amber-50 bg-amber-50/10' : 'border-slate-200 bg-white'} shadow-sm`}>
+              <div className={`px-6 py-5 border-b flex items-center justify-between ${editingId ? 'bg-amber-50 border-amber-100' : 'bg-slate-50 border-slate-100'}`}>
+                <h2 className="text-sm font-bold tracking-wide flex items-center gap-2 text-slate-800">
+                  {editingId ? <><Pencil className="w-4 h-4 text-amber-600"/> Update Record</> : <><Plus className="w-4 h-4 text-slate-500"/> Register Stock</>}
+                </h2>
+                {editingId && (
+                  <button onClick={handleCancelEdit} className="p-1 text-slate-400 hover:text-rose-500 transition-colors"><X className="w-5 h-5" /></button>
+                )}
               </div>
 
               <div className="p-6">
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                  {[
-                      { label: 'Date of Entry', icon: Calendar, key: 'date', type: 'date' },
-                      { label: 'Supplier Origin', icon: User, key: 'supplier', type: 'text', placeholder: 'Enter supplier name' },
-                      { label: 'Crates Count', icon: Box, key: 'crates', type: 'number' },
-                      { label: 'Head Count', icon: Egg, key: 'heads', type: 'number' },
-                      { label: 'Total Weight (kg)', icon: Scale, key: 'kilos', type: 'number', step: '0.01' },
-                      { label: 'Valuation (₱)', icon: DollarSign, key: 'amount', type: 'number', step: '0.01' },
-                  ].map((field) => (
-                      <div key={field.key}>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-tight mb-1">{field.label}</label>
-                        <div className="relative group">
-                          <field.icon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-amber-500 transition-colors" />
-                          <input 
-                            type={field.type} step={field.step} placeholder={field.placeholder}
-                            {...register(field.key as keyof LCInventoryFormData, {required: field.key !== 'supplier'})} 
-                            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all shadow-sm" 
-                          />
-                        </div>
-                      </div>
-                  ))}
-                  <div className="pt-4">
-                      <button type="submit" disabled={isLoading} className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all active:scale-[0.98] flex justify-center items-center gap-2 ${editingId ? 'bg-amber-500 text-white hover:bg-amber-600' : 'bg-slate-900 text-white hover:bg-slate-800'}`}>
-                          {isLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <>{editingId ? 'Save Changes' : 'Post to Ledger'} <ArrowUpRight className="w-4 h-4" /></>}
-                      </button>
+                  {/* Particulars Select */}
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-tight mb-1">Particulars</label>
+                    <div className="relative group">
+                      <ListFilter className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-amber-500 transition-colors" />
+                      <select 
+                        {...register('particulars')}
+                        className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all appearance-none cursor-pointer"
+                      >
+                        {PARTICULARS_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                      </select>
+                    </div>
                   </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-tight mb-1">Date of Entry</label>
+                    <div className="relative group">
+                      <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-amber-500 transition-colors" />
+                      <input type="date" {...register('date', {required: true})} className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-tight mb-1">Supplier Origin</label>
+                    <div className="relative group">
+                      <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-amber-500 transition-colors" />
+                      <input type="text" {...register('supplier')} placeholder="Source farm/supplier" className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all" />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-tight mb-1">Crates Count</label>
+                      <div className="relative group">
+                        <Box className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-amber-500 transition-colors" />
+                        <input 
+                          type="number" 
+                          disabled={isParticular}
+                          {...register('crates')} 
+                          className={`w-full pl-10 pr-4 py-2 rounded-xl text-sm font-medium border transition-all ${isParticular ? 'bg-slate-100 border-slate-100 text-slate-400 cursor-not-allowed' : 'bg-slate-50 border-slate-200 focus:bg-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none'}`} 
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-tight mb-1">Head Count</label>
+                      <div className="relative group">
+                        <Egg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-amber-500 transition-colors" />
+                        <input 
+                          type="number" 
+                          disabled={isParticular}
+                          {...register('heads')} 
+                          className={`w-full pl-10 pr-4 py-2 rounded-xl text-sm font-medium border transition-all ${isParticular ? 'bg-slate-100 border-slate-100 text-slate-400 cursor-not-allowed' : 'bg-slate-50 border-slate-200 focus:bg-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none'}`} 
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-tight mb-1">Total Weight (kg)</label>
+                      <div className="relative group">
+                        <Scale className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-amber-500 transition-colors" />
+                        <input type="number" step="0.01" {...register('kilos', {required: true})} className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-tight mb-1">Valuation (₱)</label>
+                      <div className="relative group">
+                        <DollarSign className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-amber-500 transition-colors" />
+                        <input type="number" step="0.01" {...register('amount', {required: true})} className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <button type="submit" disabled={isLoading} className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all active:scale-95 flex justify-center items-center gap-2 mt-4 shadow-lg ${editingId ? 'bg-amber-500 text-white shadow-amber-100' : 'bg-slate-900 text-white shadow-slate-200'}`}>
+                    {isLoading ? 'Processing...' : <>{editingId ? 'Save Changes' : 'Post to Ledger'} <ArrowUpRight className="w-4 h-4" /></>}
+                  </button>
                 </form>
               </div>
             </div>
           </div>
         </aside>
 
-        {/* RIGHT: DATA TABLE AREA */}
-        <section className="flex-1 flex flex-col min-w-0 bg-slate-50/50 overflow-hidden">
-          <div className="shrink-0 px-8 py-5 border-b border-slate-200 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-4 z-10">
-              <div className="relative w-full max-w-md">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input 
-                    type="text" placeholder="Search by supplier or date..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-100 border-none rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-slate-200 transition-all"
-                />
-            </div>
-            <div className="text-xs font-bold text-slate-500 uppercase tracking-widest bg-slate-100 px-3 py-1.5 rounded-lg">
-              {filteredItems.length} Records Found
+        {/* TABLE SECTION */}
+        <section className="flex-1 flex flex-col bg-slate-50/50 overflow-hidden">
+          <div className="shrink-0 px-8 py-5 border-b border-slate-200 bg-white flex items-center justify-between gap-4">
+            <div className="relative w-full max-w-md">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input 
+                type="text" placeholder="Search supplier, particulars or date..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-100 border-none rounded-xl text-sm font-medium focus:ring-2 focus:ring-slate-200 outline-none transition-all"
+              />
             </div>
           </div>
 
@@ -239,41 +298,53 @@ export default function LiveChickenInventoryPage() {
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full">
               <div className="overflow-y-auto custom-scrollbar">
                 <table className="w-full text-left border-collapse">
-                    <thead className="sticky top-0 bg-slate-50 z-20 shadow-sm">
-                        <tr>
-                            <th className="px-6 py-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest">Date</th>
-                            <th className="px-6 py-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest">Supplier</th>
-                            <th className="px-6 py-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest text-right">Crates</th>
-                            <th className="px-6 py-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest text-right">Heads</th>
-                            <th className="px-6 py-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest text-right">Weight</th>
-                            <th className="px-6 py-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest text-right">Amount</th>
-                            <th className="px-6 py-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest text-center w-24">Manage</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                        {filteredItems.length === 0 ? (
-                          <tr><td colSpan={7} className="px-6 py-20 text-center text-slate-400">No inventory records found.</td></tr>
-                        ) : (
-                          filteredItems.map((item) => (
-                              <tr key={item.id} className={`hover:bg-slate-50 group h-[60px] ${editingId === item.id ? 'bg-amber-50/40' : ''}`}>
-                                  <td className="px-6 py-4 text-sm font-bold text-slate-700 whitespace-nowrap">{item.date}</td>
-                                  <td className="px-6 py-4 text-sm font-semibold text-slate-600 truncate max-w-[150px]">{item.supplier || '—'}</td>
-                                  <td className="px-6 py-4 text-right text-sm font-bold text-amber-600">{item.crates}</td>
-                                  <td className="px-6 py-4 text-right"><span className="px-2.5 py-1 rounded-md text-xs font-bold bg-slate-100 text-slate-700">{item.heads}</span></td>
-                                  <td className="px-6 py-4 text-right text-sm font-bold text-slate-600 tabular-nums">
-                                    {item.kilos} <span className="text-[10px] text-slate-400 uppercase">kg</span>
-                                  </td>
-                                  <td className="px-6 py-4 text-right text-sm font-black text-slate-900">₱{Number(item.amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
-                                  <td className="px-6 py-4 text-center">
-                                    <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                      <button onClick={() => startEdit(item)} className="p-2 text-slate-400 hover:text-amber-600"><Pencil className="w-4 h-4" /></button>
-                                      <button onClick={() => onDelete(item.id)} className="p-2 text-slate-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
-                                    </div>
-                                  </td>
-                              </tr>
-                          ))
-                        )}
-                    </tbody>
+                  <thead className="sticky top-0 bg-slate-50 z-20 border-b border-slate-100">
+                    <tr>
+                      <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Date</th>
+                      <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Particulars</th>
+                      <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Supplier</th>
+                      <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-right">Crates</th>
+                      <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-right">Heads</th>
+                      <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-right">Weight</th>
+                      <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-right">Amount</th>
+                      <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {filteredItems.map((item) => (
+                      <tr key={item.id} className="hover:bg-amber-50/30 transition-colors group h-[60px]">
+                        <td className="px-6 py-4 text-sm font-bold text-slate-700">{item.date}</td>
+                        <td className="px-6 py-4">
+                          <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-tight ${item.particulars === 'Whole Chicken' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+                            {item.particulars || "Whole Chicken"}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm font-semibold text-slate-600 truncate max-w-[150px]">{item.supplier}</td>
+                        <td className="px-6 py-4 text-right">
+                          <span className="text-xs font-bold text-amber-600">
+                            {item.particulars === "Whole Chicken" ? item.crates : "-"}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <span className="px-2.5 py-1 rounded-md text-xs font-black bg-slate-100 text-slate-700">
+                            {item.particulars === "Whole Chicken" ? item.heads : "-"}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right text-sm font-bold text-slate-600">
+                          {item.kilos} <span className="text-[10px] text-slate-400">kg</span>
+                        </td>
+                        <td className="px-6 py-4 text-right text-sm font-black text-slate-900">
+                          ₱{Number(item.amount).toLocaleString(undefined, {minimumFractionDigits: 2})}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                            <button onClick={() => startEdit(item)} className="p-2 hover:bg-white hover:shadow-sm rounded-lg text-slate-400 hover:text-amber-600 transition-all"><Pencil className="w-4 h-4" /></button>
+                            <button onClick={() => openDeleteModal(item.id)} className="p-2 hover:bg-white hover:shadow-sm rounded-lg text-slate-400 hover:text-rose-600 transition-all"><Trash2 className="w-4 h-4" /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
                 </table>
               </div>
             </div>
@@ -281,11 +352,14 @@ export default function LiveChickenInventoryPage() {
         </section>
       </main>
 
-      <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        .hide-scrollbar::-webkit-scrollbar { display: none; }
-      `}</style>
+      <DeleteConfirmModal 
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={confirmDelete}
+        title="Delete Chicken Stock Entry?"
+        message="This will permanently remove these records from your total inventory count. This cannot be undone."
+        isLoading={isLoading}
+      />
     </div>
   );
 }

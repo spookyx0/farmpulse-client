@@ -13,25 +13,26 @@ export const useSocket = () => {
 
 export const SocketProvider = ({ children }: { children: ReactNode }) => {
   const [socket, setSocket] = useState<Socket | null>(null);
-  const { isAuthenticated } = useAuth(); // Get auth state
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     if (isAuthenticated) {
-     const newSocket = io(SOCKET_URL);
+      // --- INSERTED HERE ---
+      const newSocket = io(SOCKET_URL, { 
+        autoConnect: false 
+      });
+      // ---------------------
 
-      // FIX: Only set the socket in state AFTER it connects
       newSocket.on('connect', () => {
         console.log('Socket connected:', newSocket.id);
         setSocket(newSocket);
       });
 
-      // Also set state to null if it disconnects
       newSocket.on('disconnect', () => {
         console.log('Socket disconnected');
         setSocket(null);
       });
 
-      // Disconnect on logout or component unmount
       return () => {
         newSocket.disconnect();
       };
