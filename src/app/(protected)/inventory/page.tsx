@@ -78,6 +78,7 @@ export default function InventoryPage() {
   const [refresh, setRefresh] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'INVENTORY' | 'LOSSES'>('INVENTORY');
+  const [isSyncing, setIsSyncing] = useState(false);
   
   // Modals & Filters
   const [filterCategory, setFilterCategory] = useState<'ALL' | 'FROZEN_ITEM' | 'CHICKEN_PART'>('ALL');
@@ -103,6 +104,47 @@ export default function InventoryPage() {
   const isEditParticular = PARTICULARS.includes(watchEditProductName);
 
   const isLossDressedChicken = lossItem?.product?.name === 'Dressed Chicken';
+
+  // Fetch Data
+  const fetchData = async (isManualSync = false) => {
+    if (!user) return;
+    
+    if (isManualSync) setIsSyncing(true);
+    
+    try {
+      const endpoint = user.role === 'OWNER' ? '/inventory/owner' : '/inventory/branch';
+      
+      // Use Promise.all to fetch inventory and losses concurrently
+      const inventoryPromise = api.get<InventoryItem[]>(endpoint);
+      const lossesPromise = user.role === 'OWNER' ? api.get<LossRecord[]>('/inventory/losses') : Promise.resolve({ data: [] });
+
+      const [inventoryRes, lossesRes] = await Promise.all([inventoryPromise, lossesPromise]);
+
+      setInventory(inventoryRes.data);
+      if (user.role === 'OWNER') {
+        setLossRecords(lossesRes.data);
+      }
+
+      if (isManualSync) {
+        showToast('Inventory synced successfully', 'success');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to load inventory', 'error');
+    } finally {
+      if (isManualSync) setIsSyncing(false);
+    }
+  };
+
+  // Run on mount and whenever `refresh` is toggled by mutations
+  useEffect(() => {
+    fetchData(false);
+  }, [user, refresh]);
+
+  // Handler for the Sync Button
+  const handleManualSync = () => {
+    fetchData(true);
+  };
 
   // Fetch Data
   useEffect(() => {
@@ -261,13 +303,18 @@ export default function InventoryPage() {
           <button className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-50 hover:text-slate-900 transition-all shadow-sm">
             <Download className="w-4 h-4" /> Export CSV
           </button>
-          <button 
-            onClick={() => setRefresh(!refresh)} 
-            className="p-2.5 bg-white border border-slate-200 text-slate-400 hover:text-cyan-600 rounded-xl shadow-sm hover:border-cyan-200 transition-all"
-            title="Refresh Data"
+        <button 
+          onClick={handleManualSync} 
+          disabled={isSyncing}
+          className={`p-2.5 bg-white border border-slate-200 rounded-xl shadow-sm transition-all ${
+            isSyncing 
+              ? 'text-cyan-600 border-cyan-200 cursor-not-allowed opacity-80' 
+              : 'text-slate-400 hover:text-cyan-600 hover:border-cyan-200'
+          }`}
+          title="Sync Data"
           >
-            <RefreshCw className="w-5 h-5" />
-          </button>
+          <RefreshCw className={`w-5 h-5 ${isSyncing ? 'animate-spin' : ''}`} />
+        </button>
           {user?.role === 'OWNER' && (
             <button 
               onClick={() => setIsAddModalOpen(true)}
