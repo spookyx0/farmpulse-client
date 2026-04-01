@@ -265,7 +265,7 @@ export default function LiveChickenInventoryPage() {
                       </div>
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-tight mb-1">Valuation (₱)</label>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-tight mb-1">Total Cost (₱)</label>
                       <div className="relative group">
                         <DollarSign className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-amber-500 transition-colors" />
                         <input type="number" step="0.01" {...register('amount', {required: true})} className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all" />

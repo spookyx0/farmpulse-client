@@ -146,37 +146,49 @@ export default function DashboardPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   
+useEffect(() => {
+  // 1. Do nothing if the user isn't fully loaded yet
+  if (!user) return;
+
   const fetchDashboardData = async () => {
     try {
       setIsLoading(true);
+
+      // 2. STRICT ROLE ROUTING
+      if (user.role === 'OWNER') {
+        // Owner calls the master summary we built in the DashboardController
+        const response = await api.get('/dashboard/summary');
+        setOwnerSummary(response.data);
+        
+        // If you still need these populated individually from the master data:
+        if (response.data.freezerVan) setFvSummary(response.data.freezerVan);
+        if (response.data.liveChicken) setLcSummary(response.data.liveChicken);
+      } 
       
-      const response = await api.get('/freezer-van/dashboard'); 
+      else if (user.role === 'STAFF') {
+        const response = await api.get('/dashboard/staff-summary');
+        setStaffSummary(response.data);
+      } 
       
-      setFvSummary(response.data);
+      else if (user.role === 'FREEZER_VAN') {
+        const response = await api.get('/dashboard/freezer-van-summary');
+        setFvSummary(response.data);
+      } 
+      
+      else if (user.role === 'LIVE_CHICKEN') {
+        const response = await api.get('/dashboard/live-chicken-summary');
+        setLcSummary(response.data);
+      }
+
     } catch (error) {
-      console.error("Error fetching Freezer Van dashboard:", error);
+      console.error("Dashboard Sync Error:", error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  useEffect(() => {
-    // Only fetch if the user is actually logged in and has a token
-    const token = sessionStorage.getItem('token');
-    
-    if (token) {
-      fetchDashboardData();
-    } else {
-      setIsLoading(false); // Stop loading if no token found
-    }
-    
-    // Optional: Set up a "Heartbeat" to refresh data every 30 seconds
-    const interval = setInterval(() => {
-      fetchDashboardData();
-    }, 30000);
-
-    return () => clearInterval(interval); // Clean up when leaving the page
-  }, []);
+  fetchDashboardData();
+}, [user]); // This will re-run automatically whenever the 'user' state changes
 
   // Owner Filter State
   const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('DAILY');
@@ -592,115 +604,149 @@ export default function DashboardPage() {
 
   // --- RENDER: FREEZER VAN ---
   if (user?.role === 'FREEZER_VAN') {
-    if (isLoading) return <div className="p-10 text-center font-medium text-slate-400">Syncing real-time data...</div>;
+      
+      // 1. Move the function BEFORE the 'isLoading' return
+      const handleManualRefresh = async () => {
+        setIsRefreshing(true);
+        try {
+          // Make sure this matches the original endpoint that provides chartData!
+          const res = await api.get<FVSummary>('/freezer-van/dashboard'); 
+          setFvSummary(res.data);
+        } catch (err) {
+          console.error('Dashboard Load Error:', err);
+          if (err instanceof AxiosError && err.response?.status === 403) {
+            logout();
+          }
+        } finally {
+          setIsRefreshing(false);
+        }
+      };
 
-    return (
-      <div className="w-full pb-10 space-y-6 animate-in fade-in duration-500 bg-slate-50/30 p-4 rounded-2xl">
-        
-        {/* HEADER SECTION */}
-        <div className="bg-white border border-slate-100 rounded-2xl p-6 flex flex-col md:flex-row justify-between items-center shadow-sm">
-          <div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">Freezer Van Dashboard</h1>
-            <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest flex items-center gap-2">
-              <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span> Live System Status
-            </p>
+      // 2. Now it's safe to show the loading screen
+      if (isLoading && !fvSummary) {
+        return (
+          <div className="p-10 text-center font-medium text-slate-400 animate-pulse">
+            Syncing real-time data from FarmPulse...
           </div>
-          <div className="flex gap-3 mt-4 md:mt-0">
-            <button onClick={fetchDashboardData} className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-400">
-              <RefreshCw className="w-4 h-4" />
-            </button>
-            <button className="bg-slate-900 text-white px-5 py-2.5 rounded-xl text-xs font-bold hover:shadow-lg transition-all active:scale-95">
-              Generate Report
-            </button>
-          </div>
-        </div>
+        );
+      }
 
-        {/* KPI GRID */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard title="Today's Sales" value={fvSummary?.daily?.sales} icon={<TrendingUp />} color="cyan" />
-          <StatCard title="Today's Profit" value={fvSummary?.daily?.profit} icon={<Wallet />} color="emerald" />
-          <StatCard title="MTD Sales" value={fvSummary?.monthly?.sales} icon={<Calendar />} color="indigo" />
-          <StatCard title="MTD Profit" value={fvSummary?.monthly?.profit} icon={<BarChart3 />} color="slate" />
-        </div>
-
-        {/* CHART & ANALYTICS */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      return (
+        <div className="w-full pb-10 space-y-6 animate-in fade-in duration-500 bg-slate-50/30 p-4 rounded-2xl">
           
-          {/* Trend Chart */}
-          <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 p-6 shadow-sm min-h-[400px]">
-            <div className="flex justify-between items-center mb-8">
-              <h3 className="text-sm font-bold text-slate-800">7-Day Revenue Trend</h3>
-              <div className="flex gap-4">
+          {/* HEADER SECTION */}
+          <div className="bg-white border border-slate-100 rounded-2xl p-6 flex flex-col md:flex-row justify-between items-center shadow-sm">
+            <div>
+              <h1 className="text-2xl font-black text-slate-900 tracking-tight">Freezer Van Dashboard</h1>
+              <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest flex items-center gap-2">
+                <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span> Live System Status
+              </p>
+            </div>
+            <div className="flex gap-3 mt-4 md:mt-0">
+              {/* Hooked up the corrected refresh function here */}
+              <button 
+                onClick={handleManualRefresh} 
+                disabled={isRefreshing}
+                className={`p-2 rounded-lg transition-colors ${isRefreshing ? 'animate-spin text-cyan-500' : 'hover:bg-slate-100 text-slate-400'}`}
+              >
+                <RefreshCw className="w-4 h-4" />
+              </button>
+              <button className="bg-slate-900 text-white px-5 py-2.5 rounded-xl text-xs font-bold hover:shadow-lg transition-all active:scale-95">
+                Generate Report
+              </button>
+            </div>
+          </div>
+
+          {/* KPI GRID */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard title="Today's Sales" value={fvSummary?.daily?.sales} icon={<TrendingUp />} color="text-cyan-600" />
+            <StatCard title="Today's Profit" value={fvSummary?.daily?.profit} icon={<Wallet />} color="text-emerald-600" />
+            <StatCard title="MTD Sales" value={fvSummary?.monthly?.sales} icon={<Calendar />} color="text-indigo-600" />
+            <StatCard title="MTD Profit" value={fvSummary?.monthly?.profit} icon={<BarChart3 />} color="text-slate-600" />
+          </div>
+
+          {/* CHART & ANALYTICS */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            {/* Trend Chart */}
+            <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 p-6 shadow-sm min-h-[400px]">
+              <div className="flex justify-between items-center mb-8">
+                <h3 className="text-sm font-bold text-slate-800">7-Day Revenue Trend</h3>
                 <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400">
                   <div className="w-3 h-1 bg-cyan-500 rounded-full"></div> SALES
                 </div>
               </div>
+              
+              <div className="h-[300px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  {/* Fallback to an empty array so Recharts doesn't crash if chartData is missing momentarily */}
+                  <AreaChart data={fvSummary?.chartData || []}>
+                    <defs>
+                      <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.1}/>
+                        <stop offset="95%" stopColor="#06b6d4" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} />
+                    <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} tickFormatter={(v) => `₱${v}`} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Area type="monotone" dataKey="Sales" stroke="#06b6d4" strokeWidth={3} fill="url(#chartGradient)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
             </div>
-            
-            <div className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={fvSummary?.chartData || []}>
-                  <defs>
-                    <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.1}/>
-                      <stop offset="95%" stopColor="#06b6d4" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} />
-                  <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} tickFormatter={(v) => `₱${v}`} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Area type="monotone" dataKey="Sales" stroke="#06b6d4" strokeWidth={3} fill="url(#chartGradient)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
 
-          {/* Top Products */}
-          <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm">
-            <h3 className="text-sm font-bold text-slate-800 mb-6">Inventory Velocity</h3>
-            <div className="space-y-6">
-              {fvSummary?.topProducts?.map((item: TopProduct, i: number) => (
-                <div key={i} className="space-y-2">
-                  <div className="flex justify-between text-xs font-bold text-slate-600">
-                    <span>{item.name}</span>
-                    <span>{item.percentage}%</span>
-                  </div>
-                  <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-cyan-500 rounded-full transition-all duration-1000" 
-                      style={{ width: `${item.percentage}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
+            {/* Top Products */}
+            <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm">
+              <h3 className="text-sm font-bold text-slate-800 mb-6">Inventory Velocity</h3>
+              <div className="space-y-6">
+                {/* FIX: Use fallback arrays to satisfy TypeScript's strict null checks */}
+                {(fvSummary?.topProducts || []).length > 0 ? (
+                  (fvSummary?.topProducts || []).map((item: any, i: number) => (
+                    <div key={i} className="space-y-2">
+                      <div className="flex justify-between text-xs font-bold text-slate-600">
+                        <span>{item.name}</span>
+                        <span>{item.percentage}%</span>
+                      </div>
+                      <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-cyan-500 rounded-full transition-all duration-1000" 
+                          style={{ width: `${item.percentage}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-xs text-slate-400 text-center mt-10">No velocity data yet.</p>
+                )}
+              </div>
             </div>
-          </div>
 
+          </div>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
   // Sub-component for clean Stat Cards
   function StatCard({ title, value, icon, color }: StatCardProps) {
-    return (
-      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:border-cyan-200 transition-colors group">
-        <div className="flex justify-between items-start">
-          {/* We use a style object for dynamic colors to avoid Tailwind JIT issues with template literals */}
-          <div className="p-2 rounded-xl transition-transform group-hover:scale-110 bg-slate-50">
-            {React.cloneElement(icon, { size: 18, className: `text-${color}-600` })}
+      return (
+        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:border-cyan-200 transition-colors group">
+          <div className="flex justify-between items-start">
+            <div className="p-2 rounded-xl transition-transform group-hover:scale-110 bg-slate-50">
+              {/* Directly apply the full class string we passed in */}
+              {React.cloneElement(icon, { size: 18, className: color })}
+            </div>
+          </div>
+          <div className="mt-4">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{title}</p>
+            <h2 className="text-xl font-black text-slate-900 mt-1">
+              ₱{value?.toLocaleString() ?? '0'}
+            </h2>
           </div>
         </div>
-        <div className="mt-4">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{title}</p>
-          <h2 className="text-xl font-black text-slate-900 mt-1">
-            ₱{value?.toLocaleString() ?? '0'}
-          </h2>
-        </div>
-      </div>
-    );
-  }
+      );
+    }
 
   // --- RENDER: LIVE CHICKEN ---
   if (user?.role === 'LIVE_CHICKEN' && lcSummary) {
