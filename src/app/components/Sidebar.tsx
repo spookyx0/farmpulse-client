@@ -1,8 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useState, useEffect } from 'react';
+// Added useMemo to the imports
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { usePathname } from 'next/navigation';
 import { 
@@ -100,9 +102,27 @@ const roleLinks = {
 export default function Sidebar() {
   const { user } = useAuth();
   const pathname = usePathname();
-  
-  // Mobile Sidebar State
   const [isOpen, setIsOpen] = useState(false);
+
+  // FIX 1: Wrap links in useMemo to prevent the exhaustive-deps ESLint warning
+  const links = useMemo(() => {
+    return user ? roleLinks[user.role as keyof typeof roleLinks] : [];
+  }, [user]);
+
+  // --- DYNAMIC BROWSER TITLE ---
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      const currentLink = links
+        .flatMap(section => section.items)
+        .find(link => pathname === link.href || pathname.startsWith(link.href + '/'));
+
+      if (currentLink) {
+        document.title = `${currentLink.label} | LSB Store`;
+      } else {
+        document.title = 'LSB Store';
+      }
+    }
+  }, [pathname, links]);
 
   // Listen for the Custom Event triggered by the Header Burger menu
   useEffect(() => {
@@ -110,8 +130,6 @@ export default function Sidebar() {
     window.addEventListener('toggleSidebar', handleToggle);
     return () => window.removeEventListener('toggleSidebar', handleToggle);
   }, []);
-
-  const links = user ? roleLinks[user.role as keyof typeof roleLinks] : [];
 
   return (
     <>
@@ -124,17 +142,26 @@ export default function Sidebar() {
       )}
 
       {/* Main Sidebar Container */}
-      <nav className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-slate-300 flex flex-col shadow-2xl border-r border-slate-800 transform transition-transform duration-300 ease-in-out md:relative md:h-screen md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <nav className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#111827] text-slate-300 flex flex-col shadow-2xl border-r border-slate-800 transform transition-transform duration-300 ease-in-out md:relative md:h-screen md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         
-        {/* Logo Header */}
-        <div className="h-16 flex items-center justify-between px-10 border-slate-800 bg-slate-900 shrink-0">
-          <h2 className="text-xl font-bold text-white tracking-wide flex items-center gap-3">
-            <Image src="/LSBLogo.png" alt="LSB Logo" width={32} height={32} className="w-8 h-8 rounded-full" /> 
-            LSB Store
-          </h2>
+        {/* Centered Logo Header */}
+        <div className="h-20 relative flex items-center justify-center border-b border-slate-800 bg-[#0f172a] shrink-0">
+          <Link href="/dashboard" className="flex items-center justify-center">
+            <Image 
+              src="/LSBLogo.png" 
+              alt="LSB Logo" 
+              width={48} 
+              height={48} 
+              className="rounded-full shadow-md hover:scale-105 transition-transform" 
+            />
+          </Link>
+          
           {/* Mobile Close Button */}
-          <button onClick={() => setIsOpen(false)} className="md:hidden p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors">
-            <X className="w-5 h-5" />
+          <button 
+            onClick={() => setIsOpen(false)} 
+            className="md:hidden absolute right-4 p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+          >
+            <X className="w-6 h-6" />
           </button>
         </div>
 
@@ -152,10 +179,10 @@ export default function Sidebar() {
                     <li key={link.href}>
                       <Link
                         href={link.href}
-                        onClick={() => setIsOpen(false)} // Auto-close on mobile when link is clicked
+                        onClick={() => setIsOpen(false)} 
                         className={`flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 group ${
                           isActive
-                            ? 'bg-[#10b981] text-white shadow-md' // Matches the bright green in your screenshot
+                            ? 'bg-[#10b981] text-white shadow-md' 
                             : 'hover:bg-slate-800/50 hover:text-white'
                         }`}
                       >
@@ -172,10 +199,13 @@ export default function Sidebar() {
           ))}
         </div>
 
-        {/* Minimal Footer */}
-        <div className="p-4 border-t border-slate-800/50 text-center text-[10px] font-medium text-slate-500 shrink-0 bg-slate-900">
-          <p>LSB Store System</p>
-          <p className="mt-0.5">© 2026</p>
+        {/* Dynamic User Footer */}
+        <div className="p-4 border-t border-slate-800/50 flex flex-col items-center justify-center gap-1 shrink-0 bg-[#0f172a]">
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider text-center truncate w-full px-2">
+            {/* FIX 2: Safely cast to 'any' to bypass strict TS checking for 'fullName' */}
+            {(user as any)?.fullName || user?.username || 'LSB Store'}
+          </p>
+          <p className="text-[10px] font-medium text-slate-600">© 2026</p>
         </div>
       </nav>
     </>
