@@ -12,7 +12,7 @@ import { Modal } from '../../components/ui/Modal';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
 import { 
   Package, Plus, RefreshCw, Tag, Layers, User, 
-  Pencil, Trash2, Search, TrendingDown, AlertTriangle, DollarSign, Download, ClipboardList, CheckCircle2, XCircle
+  Pencil, Trash2, Search, TrendingDown, AlertTriangle, DollarSign, Download, ClipboardList, CheckCircle2
 } from 'lucide-react';
 
 // --- Constants ---
@@ -40,6 +40,7 @@ interface LossRecord {
   heads: number;
   kilos: number;
   reason: string;
+  branchName?: string; // Added to interface
 }
 
 interface AddStockFormData {
@@ -105,7 +106,7 @@ export default function InventoryPage() {
 
   const isLossDressedChicken = lossItem?.product?.name === 'Dressed Chicken';
 
-  // Fetch Data
+  // Fetch Data (Cleaned up duplicate useEffect)
   const fetchData = async (isManualSync = false) => {
     if (!user) return;
     
@@ -146,27 +147,6 @@ export default function InventoryPage() {
     fetchData(true);
   };
 
-  // Fetch Data
-  useEffect(() => {
-    if (!user) return;
-    const endpoint = user.role === 'OWNER' ? '/inventory/owner' : '/inventory/branch';
-    
-    // 1. Fetch Active Inventory
-    api.get<InventoryItem[]>(endpoint)
-      .then((res) => setInventory(res.data))
-      .catch((err) => {
-        console.error(err);
-        showToast('Failed to load inventory', 'error');
-      });
-
-    // 2. ACTIVATE THIS: Fetch Loss Records for the new tab
-    if (user.role === 'OWNER') {
-      api.get<LossRecord[]>('/inventory/losses')
-        .then(res => setLossRecords(res.data))
-        .catch(err => console.error("Failed to fetch losses", err));
-    }
-  }, [user, refresh]);
-
   // --- STATS CALCULATION ---
   const stats = useMemo(() => {
     const totalItems = inventory.length;
@@ -189,7 +169,6 @@ export default function InventoryPage() {
         category: inferredCategory,
         quantity: finalQuantity,
         heads: isAddDressedChicken ? Number(data.heads || 0) : undefined,
-        // Allow explicit 0 by parsing with Number() and ensuring the backend receives the absolute number
         purchase_price: Number(data.purchase_price), 
         selling_price: Number(data.selling_price),
       });
@@ -250,11 +229,15 @@ export default function InventoryPage() {
     }
   };
 
-  // Loss Handler
+  // Loss Handler (UPDATED FOR DYNAMIC ROLE ROUTING)
   const onSaveLoss = async (data: LossFormData) => {
     if (!lossItem) return;
     try {
-      await api.post(`/inventory/owner/${lossItem.id}/loss`, {
+      const endpoint = user?.role === 'OWNER' 
+        ? `/inventory/owner/${lossItem.id}/loss`
+        : `/inventory/branch/${lossItem.id}/loss`;
+
+      await api.post(endpoint, {
         heads: isLossDressedChicken ? Number(data.heads || 0) : 0,
         kilos: Number(data.kilos || 0),
         reason: data.reason || 'General Loss/Spoilage'
@@ -373,13 +356,17 @@ export default function InventoryPage() {
             <Package className="w-4 h-4" /> Active Stock
             {activeTab === 'INVENTORY' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-slate-900 rounded-t-full" />}
           </button>
-          <button 
-            onClick={() => setActiveTab('LOSSES')}
-            className={`flex items-center gap-2 px-8 py-4 text-sm font-bold transition-colors relative ${activeTab === 'LOSSES' ? 'text-orange-600' : 'text-slate-400 hover:text-slate-600'}`}
-          >
-            <ClipboardList className="w-4 h-4" /> Loss Monitoring
-            {activeTab === 'LOSSES' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-orange-600 rounded-t-full" />}
-          </button>
+          
+          {/* ONLY OWNER CAN SEE THE LOSS TAB */}
+          {user?.role === 'OWNER' && (
+            <button 
+              onClick={() => setActiveTab('LOSSES')}
+              className={`flex items-center gap-2 px-8 py-4 text-sm font-bold transition-colors relative ${activeTab === 'LOSSES' ? 'text-orange-600' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+              <ClipboardList className="w-4 h-4" /> Loss Monitoring
+              {activeTab === 'LOSSES' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-orange-600 rounded-t-full" />}
+            </button>
+          )}
         </div>
 
         {/* INVENTORY TOOLBAR */}
@@ -427,7 +414,12 @@ export default function InventoryPage() {
                       <th className="px-6 py-4 text-center">Manage</th>
                     </>
                   )}
-                  {user?.role === 'STAFF' && <th className="px-6 py-4 text-right">Price</th>}
+                  {user?.role === 'STAFF' && (
+                    <>
+                      <th className="px-6 py-4 text-right">Price</th>
+                      <th className="px-6 py-4 text-center">Manage</th>
+                    </>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -463,6 +455,7 @@ export default function InventoryPage() {
                       </div>
                     </td>
 
+                    {/* OWNER TABLE VIEW */}
                     {user?.role === 'OWNER' && (
                       <>
                         <td className="px-6 py-4 text-right">
@@ -487,10 +480,20 @@ export default function InventoryPage() {
                       </>
                     )}
                     
+                    {/* STAFF TABLE VIEW */}
                     {user?.role === 'STAFF' && (
-                      <td className="px-6 py-4 text-right font-bold text-slate-900">
-                        ₱{Number(item.selling_price || item.product?.selling_price || 0).toFixed(2)}
-                      </td>
+                      <>
+                        <td className="px-6 py-4 text-right font-bold text-slate-900">
+                          ₱{Number(item.selling_price || item.product?.selling_price || 0).toFixed(2)}
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <div className="flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => setLossItem(item)} className="p-2 text-orange-600 bg-white border border-orange-200 hover:bg-orange-50 hover:border-orange-300 rounded-lg transition-all shadow-sm" title="Report Loss">
+                              <TrendingDown className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </>
                     )}
                   </tr>
                 ))}
@@ -518,6 +521,7 @@ export default function InventoryPage() {
               <thead className="bg-white sticky top-0 z-10 shadow-[0_1px_0_0_#e2e8f0]">
                 <tr className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                   <th className="px-6 py-4">Date Recorded</th>
+                  <th className="px-6 py-4">Source / Branch</th>
                   <th className="px-6 py-4">Product Name</th>
                   <th className="px-6 py-4 text-center">Total Lost</th>
                   <th className="px-6 py-4">Reason / Notes</th>
@@ -528,6 +532,19 @@ export default function InventoryPage() {
                   lossRecords.map((record) => (
                     <tr key={record.id} className="hover:bg-orange-50/50 transition-colors">
                       <td className="px-6 py-4 font-medium text-slate-500">{new Date(record.date).toLocaleDateString()}</td>
+                      
+                      <td className="px-6 py-4">
+                        {record.branchName ? (
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                            {record.branchName}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                            Master Inventory
+                          </span>
+                        )}
+                      </td>
+
                       <td className="px-6 py-4 font-bold text-slate-900">{record.productName}</td>
                       <td className="px-6 py-4 text-center">
                         <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-700">
@@ -540,13 +557,13 @@ export default function InventoryPage() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={4} className="px-6 py-24 text-center">
+                    <td colSpan={5} className="px-6 py-24 text-center">
                       <div className="flex flex-col items-center justify-center text-slate-400">
                         <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mb-4">
                           <CheckCircle2 className="w-8 h-8 text-emerald-500" />
                         </div>
                         <p className="font-bold text-slate-600 text-lg">Inventory is Healthy</p>
-                        <p className="text-sm mt-1">No product losses have been recorded.</p>
+                        <p className="text-sm mt-1">No product losses have been recorded across operations.</p>
                       </div>
                     </td>
                   </tr>
