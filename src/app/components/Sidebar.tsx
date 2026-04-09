@@ -127,7 +127,7 @@ export default function Sidebar() {
       <nav className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-slate-300 flex flex-col shadow-2xl border-r border-slate-800 transform transition-transform duration-300 ease-in-out md:relative md:h-screen md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         
         {/* Logo Header */}
-        <div className="h-16 flex items-center justify-between px-10 border-b border-slate-800 bg-slate-950 shrink-0">
+        <div className="h-16 flex items-center justify-between px-10 border-slate-800 bg-slate-900 shrink-0">
           <h2 className="text-xl font-bold text-white tracking-wide flex items-center gap-3">
             <Image src="/LSBLogo.png" alt="LSB Logo" width={32} height={32} className="w-8 h-8 rounded-full" /> 
             LSB Store
