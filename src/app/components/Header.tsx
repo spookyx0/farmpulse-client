@@ -8,7 +8,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useSocket } from '../contexts/SocketContext';
 import { useToast } from '../contexts/ToastContext';
 import api from '../services/api';
-import { Bell, User, LogOut, Package, ShoppingCart, Truck, Info, Banknote, Settings, Lock, Key, Camera } from 'lucide-react';
+// --- NEW: Imported 'Menu' icon ---
+import { Bell, User, LogOut, Package, ShoppingCart, Truck, Info, Banknote, Settings, Lock, Key, Camera, Menu } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { Modal } from './ui/Modal';
 import { ConfirmationModal } from './ui/ConfirmationModal';
@@ -20,12 +21,9 @@ const getAvatarUrl = (url: string | undefined | null) => {
   if (!url) return null;
   if (url.startsWith('data:') || url.startsWith('http') || url.startsWith('https')) return url;
   
-  // Replace backslashes with forward slashes for Windows paths
   const cleanUrl = url.replace(/\\/g, '/');
-  // Ensure leading slash
   const path = cleanUrl.startsWith('/') ? cleanUrl : `/${cleanUrl}`;
   
-  // Determine base URL: Env Var -> Axios Default -> Fallback
   let apiUrl = process.env.NEXT_PUBLIC_API_URL;
   if (!apiUrl && api.defaults.baseURL) {
     apiUrl = api.defaults.baseURL;
@@ -33,13 +31,11 @@ const getAvatarUrl = (url: string | undefined | null) => {
   if (!apiUrl) apiUrl = 'http://localhost:3001';
   
   apiUrl = apiUrl.trim();
-  // Remove trailing slash and optional '/api' suffix for static assets
   const cleanApiUrl = apiUrl.replace(/\/$/, '').replace(/\/api$/, '');
   
   return `${cleanApiUrl}${path}`;
 };
 
-// Define the Notification Type
 interface NotificationItem {
   id: string;
   title: string;
@@ -71,29 +67,17 @@ export default function Header() {
   const [displayUser, setDisplayUser] = useState<any>(user);
   const [imgError, setImgError] = useState(false);
 
-  // Sync with context and fetch fresh data from DB
-useEffect(() => {
+  useEffect(() => {
     if (user) {
-      console.log("Header received user:", user.username); 
-      
-      // 1. Trust the Context (Token) first. It is the most reliable source.
       setDisplayUser(user); 
       setImgError(false);
       
-      // 2. Fetch extra details (Avatar) but PREVENT overwriting Identity
-      // Add ?t=${Date.now()} to prevent Browser Caching
       api.get(`/auth/profile?t=${Date.now()}`) 
         .then(res => {
-            console.log("API Profile Data:", res.data); // Debug: See what API sends
-
             if (res.data) {
                 setDisplayUser((prev: any) => ({
                     ...prev,
-                    // Only update Avatar and non-critical fields
                     avatar: res.data.avatar, 
-                    // OPTIONAL: Only update username if it's not null, 
-                    // but honestly, the Token is usually safer for identity.
-                    // Let's keep the Token's role/username to be safe.
                     username: user.username, 
                     role: user.role,
                 }));
@@ -103,13 +87,11 @@ useEffect(() => {
     }
   }, [user]);
 
-  // Track current user ref to avoid stale closures in socket listeners
   const userRef = useRef(user);
   useEffect(() => {
     userRef.current = user;
   }, [user]);
 
-  // --- 1. Load Notifications from SessionStorage ---
   useEffect(() => {
     if (typeof window === 'undefined' || !user) return;
 
@@ -119,7 +101,6 @@ useEffect(() => {
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
-         
         const hydrated = parsed.map((n: any) => ({
           ...n,
           timestamp: new Date(n.timestamp) 
@@ -139,27 +120,22 @@ useEffect(() => {
     }
   };
 
-  // --- 2. Real-time Listeners ---
   useEffect(() => {
     if (!socket) return;
 
-    // Helper to add notification safely
     const pushNotification = (notif: NotificationItem) => {
       setNotifications(prev => {
-        const updated = [notif, ...prev].slice(0, 50); // Keep last 50
+        const updated = [notif, ...prev].slice(0, 50); 
         saveNotifications(updated);
         return updated;
       });
     };
 
-    // 2a. Sales
     const handleNewSale = (sale: any) => {
       const currentUser = userRef.current;
       if (!currentUser) return;
-
       const userBranchId = Number(currentUser.branchId);
       const saleBranchId = Number(sale.branch?.id || sale.branchId);
-      
       const isOwner = currentUser.role === 'OWNER';
       const isMyBranch = currentUser.role === 'STAFF' && userBranchId === saleBranchId;
 
@@ -175,22 +151,17 @@ useEffect(() => {
       }
     };
 
-    // 2b. Delivery Updates (FIXED: Explicit updates for Owner)
     const handleDeliveryUpdate = (delivery: any) => {
       const currentUser = userRef.current;
       if (!currentUser) return;
-
       const userBranchId = Number(currentUser.branchId);
       const deliveryBranchId = Number(delivery.branch?.id || delivery.branchId);
-      
       const isOwner = currentUser.role === 'OWNER';
       const isMyBranch = currentUser.role === 'STAFF' && userBranchId === deliveryBranchId;
 
       if (isOwner || isMyBranch) {
-        // Format message based on role
         const branchName = delivery.branch?.name ? ` to ${delivery.branch.name}` : '';
         const statusMsg = delivery.status === 'DELIVERED' ? 'has been RECEIVED' : `is now ${delivery.status}`;
-        
         const message = isOwner 
             ? `Shipment #${delivery.id}${branchName} ${statusMsg}.`
             : `Delivery #${delivery.id} update: ${delivery.status}`;
@@ -206,14 +177,11 @@ useEffect(() => {
       }
     };
 
-    // 2c. New Delivery
     const handleNewDelivery = (delivery: any) => {
       const currentUser = userRef.current;
       if (!currentUser) return;
-
       const userBranchId = Number(currentUser.branchId);
       const deliveryBranchId = Number(delivery.branch?.id || delivery.branchId);
-      
       const isOwner = currentUser.role === 'OWNER';
       const isMyBranch = currentUser.role === 'STAFF' && userBranchId === deliveryBranchId;
 
@@ -238,7 +206,6 @@ useEffect(() => {
       }
     };
 
-    // 2d. Inventory Changes (Master)
     const handleInventoryUpdate = (data: any) => {
       const currentUser = userRef.current;
       if (currentUser?.role === 'OWNER') {
@@ -253,14 +220,11 @@ useEffect(() => {
       }
     };
 
-    // 2e. New Expense
     const handleNewExpense = (expense: any) => {
       const currentUser = userRef.current;
       if (!currentUser) return;
-
       const userBranchId = Number(currentUser.branchId);
       const expBranchId = Number(expense.branchId);
-      
       const isOwner = currentUser.role === 'OWNER';
       const isMyBranch = currentUser.role === 'STAFF' && userBranchId === expBranchId;
 
@@ -304,7 +268,6 @@ useEffect(() => {
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  // Click outside handler
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
@@ -319,7 +282,6 @@ useEffect(() => {
   }, []);
 
   const onSaveChanges = async (data: any) => {
-    // Only validate password fields if user is trying to change it
     if (data.newPassword || data.confirmPassword) {
         if (data.newPassword !== data.confirmPassword) {
             showToast("New passwords do not match.", "error");
@@ -334,7 +296,6 @@ useEffect(() => {
         setShowConfirmModal(true);
         return;
     }
-    
     await executeSave(data);
   };
 
@@ -342,14 +303,11 @@ useEffect(() => {
     setIsSubmitting(true);
     try {
       const formData = new FormData();
-
       if (data.username) formData.append('username', data.username);
-      
       if (data.newPassword) {
         formData.append('currentPassword', data.currentPassword);
         formData.append('newPassword', data.newPassword);
       }
-
       if (data.avatar && data.avatar.length > 0) {
         formData.append('avatar', data.avatar[0]);
       }
@@ -389,9 +347,18 @@ useEffect(() => {
   };
 
   return (
-    <header className="bg-white h-16 border-b border-slate-200 sticky top-0 z-30 flex items-center justify-between px-6 shadow-sm">
-      <div className="flex items-center gap-4">
+    <header className="bg-white h-16 border-b border-slate-200 sticky top-0 z-30 flex items-center justify-between px-4 sm:px-6 shadow-sm">
+      <div className="flex items-center gap-3">
+        {/* --- NEW: Mobile Hamburger Menu Button --- */}
+        <button 
+          onClick={() => window.dispatchEvent(new CustomEvent('toggleSidebar'))}
+          className="md:hidden p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-800 rounded-lg transition-colors"
+        >
+          <Menu className="w-6 h-6" />
+        </button>
+
         <h2 className="text-lg font-semibold text-slate-700 hidden md:block">
+          {/* You can put a page title here if you want */}
         </h2>
       </div>
 
@@ -401,7 +368,7 @@ useEffect(() => {
         <div className="relative" ref={notifRef}>
           <button 
             onClick={() => setShowNotifications(!showNotifications)}
-            className="p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors relative"
+            className="p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-800 rounded-full transition-colors relative"
           >
             <Bell className="w-5 h-5" />
             {unreadCount > 0 && (
@@ -411,7 +378,7 @@ useEffect(() => {
 
           {/* Notifications Dropdown */}
           {showNotifications && (
-            <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-xl shadow-xl border border-slate-100 py-2 animate-in fade-in zoom-in-95 duration-200 origin-top-right z-50 max-h-[90vh] flex flex-col">
+            <div className="absolute right-0 mt-2 w-[320px] sm:w-96 bg-white rounded-xl shadow-xl border border-slate-100 py-2 animate-in fade-in zoom-in-95 duration-200 origin-top-right z-50 max-h-[85vh] flex flex-col">
               <div className="px-4 py-3 border-b border-slate-50 flex justify-between items-center bg-slate-50/50 rounded-t-xl">
                 <h3 className="text-sm font-bold text-slate-800">Notifications ({unreadCount})</h3>
                 <div className="flex gap-3">
@@ -466,9 +433,9 @@ useEffect(() => {
         <div className="relative" ref={profileRef}>
           <button 
             onClick={() => setShowProfileMenu(!showProfileMenu)}
-            className="flex items-center gap-3 p-1.5 pr-3 rounded-full hover:bg-slate-50 transition-all border border-transparent hover:border-slate-200"
+            className="flex items-center gap-3 p-1.5 md:pr-3 rounded-full hover:bg-slate-50 transition-all border border-transparent hover:border-slate-200"
           >
-            <div className="h-8 w-8 bg-gradient-to-tr from-green-500 to-teal-600 rounded-full flex items-center justify-center text-white shadow-sm overflow-hidden relative">
+            <div className="h-8 w-8 bg-gradient-to-tr from-green-500 to-teal-600 rounded-full flex items-center justify-center text-white shadow-sm overflow-hidden relative shrink-0">
               {displayUser?.avatar && !imgError ? (
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img 
@@ -495,7 +462,7 @@ useEffect(() => {
             <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 py-2 animate-in fade-in zoom-in-95 duration-200 origin-top-right z-50">
               <div className="px-4 py-3 border-b border-slate-50 md:hidden">
                 <p className="text-sm font-bold text-slate-800">{displayUser?.username}</p>
-                <p className="text-xs text-slate-500">{displayUser?.role}</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mt-0.5">{displayUser?.role?.replace('_', ' ')}</p>
               </div>
               
               <button 
@@ -565,8 +532,8 @@ useEffect(() => {
                         </label>
                     </div>
                     <div className="text-center">
-                        <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">{displayUser?.role}</p>
-                        {displayUser?.branchId && <p className="text-xs text-slate-400">Branch #{displayUser.branchId}</p>}
+                        <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">{displayUser?.role?.replace('_', ' ')}</p>
+                        {displayUser?.branchId && <p className="text-xs text-slate-400 mt-1">Branch #{displayUser.branchId}</p>}
                     </div>
                 </div>
                 

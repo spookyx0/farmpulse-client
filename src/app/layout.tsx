@@ -6,7 +6,6 @@ import { SocketProvider } from './contexts/SocketContext';
 import React from 'react';
 import { ToastProvider } from './contexts/ToastContext';
 
-
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
