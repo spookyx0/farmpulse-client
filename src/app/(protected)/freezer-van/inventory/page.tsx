@@ -149,10 +149,10 @@ export default function FreezerVanInventoryPage() {
   );
 
   return (
-    <div className="h-screen w-full bg-slate-50 text-slate-900 font-sans flex flex-col overflow-hidden">
+    <div className="h-screen w-full bg-slate-50 text-slate-900 font-sans flex flex-col overflow-y-auto xl:overflow-hidden">
       
       {/* --- HEADER --- */}
-      <header className="shrink-0 bg-white border-b border-slate-200 px-6 py-5 flex flex-col lg:flex-row lg:items-center justify-between gap-6 z-20 shadow-sm">
+      <header className="shrink-0 bg-white border-b border-slate-200 px-4 sm:px-6 py-4 sm:py-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 lg:gap-6 z-20 shadow-sm">
         <div className="flex items-center gap-3">
           <div className="p-2.5 bg-cyan-600 rounded-xl shadow-sm">
             <Snowflake className="w-6 h-6 text-white" />
@@ -164,32 +164,32 @@ export default function FreezerVanInventoryPage() {
         </div>
 
         <div className="flex gap-4 overflow-x-auto pb-2 lg:pb-0 hide-scrollbar">
-          <div className="bg-slate-900 min-w-[180px] p-4 rounded-2xl flex flex-col justify-between shadow-lg">
+          <div className="bg-slate-900 min-w-[160px] sm:min-w-[180px] p-3 sm:p-4 rounded-2xl flex flex-col justify-between shadow-lg">
             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">Total Net Value</p>
-            <p className="text-xl font-black text-white tabular-nums">
+            <p className="text-lg sm:text-xl font-black text-white tabular-nums leading-none">
               ₱{stats.totalNetValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </p>
           </div>
-          <div className="bg-white min-w-[140px] p-4 rounded-2xl border border-slate-200 flex flex-col justify-between shadow-sm">
+          <div className="bg-white min-w-[130px] sm:min-w-[140px] p-3 sm:p-4 rounded-2xl border border-slate-200 flex flex-col justify-between shadow-sm">
             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Stock Volume</p>
-            <p className="text-xl font-black text-slate-900 tabular-nums">
+            <p className="text-lg sm:text-xl font-black text-slate-900 tabular-nums leading-none">
               {stats.totalKilos.toLocaleString()} <span className="text-xs text-slate-400">kg</span>
             </p>
           </div>
-          <div className="bg-white min-w-[120px] p-4 rounded-2xl border border-slate-200 flex flex-col justify-between shadow-sm">
+          <div className="bg-white min-w-[120px] sm:min-w-[130px] p-3 sm:p-4 rounded-2xl border border-slate-200 flex flex-col justify-between shadow-sm">
             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Crates On-Hand</p>
-            <p className="text-xl font-black text-cyan-600 tabular-nums">{stats.totalCrates}</p>
+            <p className="text-lg sm:text-xl font-black text-cyan-600 tabular-nums leading-none">{stats.totalCrates}</p>
           </div>
         </div>
       </header>
 
       {/* --- MAIN LAYOUT --- */}
-      <main className="flex-1 flex flex-col xl:flex-row overflow-hidden">
+      <main className="flex-1 flex flex-col xl:flex-row overflow-visible xl:overflow-hidden">
         
-        <aside className="xl:w-[400px] shrink-0 border-r border-slate-200 bg-white overflow-y-auto custom-scrollbar">
-          <div className="p-6">
+        <aside className="xl:w-[400px] shrink-0 border-b xl:border-b-0 xl:border-r border-slate-200 bg-white overflow-visible xl:overflow-y-auto custom-scrollbar z-10">
+          <div className="p-4 sm:p-6">
             <div className={`rounded-2xl border ${editingId ? 'border-amber-200 bg-amber-50/10' : 'border-slate-200 bg-white'} shadow-sm overflow-hidden transition-colors`}>
-              <div className="px-6 py-4 border-b border-slate-50 bg-slate-50/50 flex items-center justify-between">
+              <div className="px-4 sm:px-6 py-4 border-b border-slate-50 bg-slate-50/50 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Archive className={`w-4 h-4 ${editingId ? 'text-amber-600' : 'text-cyan-600'}`} />
                   <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
@@ -206,7 +206,7 @@ export default function FreezerVanInventoryPage() {
                 )}
               </div>
 
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Stock Item</label>
@@ -219,8 +219,8 @@ export default function FreezerVanInventoryPage() {
                     </select>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="col-span-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="sm:col-span-2">
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Date</label>
                       <input type="date" {...register('date', {required: true})} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none" />
                     </div>
@@ -245,7 +245,7 @@ export default function FreezerVanInventoryPage() {
                        <input type="number" step="0.01" {...register('travel_expense')} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none" />
                     </div>
 
-                    <div className="col-span-2">
+                    <div className="sm:col-span-2">
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Other Overhead Expenses</label>
                       <input type="number" step="0.01" {...register('other_expense')} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none" />
                     </div>
@@ -283,24 +283,24 @@ export default function FreezerVanInventoryPage() {
         </aside>
 
         {/* --- HISTORY TABLE --- */}
-        <section className="flex-1 flex flex-col bg-slate-50/50 overflow-hidden">
-          <div className="shrink-0 px-8 py-5 border-b border-slate-200 bg-white flex items-center justify-between gap-4">
-            <div className="relative w-full max-w-md">
+        <section className="flex-1 flex flex-col bg-slate-50/50 overflow-hidden min-h-[500px] xl:min-h-0">
+          <div className="shrink-0 px-4 sm:px-8 py-4 sm:py-5 border-b border-slate-200 bg-white flex items-center justify-between gap-4">
+            <div className="relative w-full sm:max-w-md">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input 
                 type="text" 
                 placeholder="Search by date or item..." 
                 value={searchTerm} 
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-slate-100 border-none rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-cyan-500/20 transition-all"
+                className="w-full pl-10 pr-4 py-2 sm:py-2.5 bg-slate-100 border-none rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-cyan-500/20 transition-all"
               />
             </div>
           </div>
 
-          <div className="flex-1 p-8 overflow-hidden">
+          <div className="flex-1 p-4 sm:p-8 overflow-hidden flex flex-col">
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full">
-              <div className="overflow-y-auto custom-scrollbar">
-                <table className="w-full text-left">
+              <div className="overflow-y-auto overflow-x-auto custom-scrollbar flex-1">
+                <table className="w-full text-left min-w-[800px]">
                   <thead className="sticky top-0 bg-slate-50 z-20 border-b border-slate-100">
                     <tr>
                       <th className="px-6 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest">Record Date</th>

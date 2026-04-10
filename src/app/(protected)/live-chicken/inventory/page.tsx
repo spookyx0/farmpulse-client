@@ -151,10 +151,10 @@ export default function LiveChickenInventoryPage() {
   }, [items]);
 
   return (
-    <div className="h-screen w-full bg-slate-50 text-slate-900 font-sans flex flex-col overflow-hidden selection:bg-amber-100 selection:text-amber-900">
+    <div className="h-screen w-full bg-slate-50 text-slate-900 font-sans flex flex-col overflow-y-auto xl:overflow-hidden selection:bg-amber-100 selection:text-amber-900">
       
       {/* --- HEADER --- */}
-      <header className="shrink-0 bg-white border-b border-slate-200 px-6 py-5 flex flex-col lg:flex-row lg:items-center justify-between gap-6 z-20 shadow-sm">
+      <header className="shrink-0 bg-white border-b border-slate-200 px-4 sm:px-6 py-4 sm:py-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 lg:gap-6 z-20 shadow-sm">
         <div className="flex items-center gap-3">
           <div className="p-2.5 bg-amber-500 rounded-xl shadow-sm border border-amber-600/20">
             <Package className="w-6 h-6 text-white" />
@@ -172,21 +172,21 @@ export default function LiveChickenInventoryPage() {
             { label: 'Total Weight', val: `${stats.kilos.toLocaleString()} kg`, icon: Scale, color: 'text-slate-900' },
             { label: 'Avg Weight', val: `${stats.avg} kg/b`, icon: Activity, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200' }
           ].map((kpi, i) => (
-            <div key={i} className={`${kpi.bg || 'bg-slate-50'} min-w-[130px] p-4 rounded-2xl border ${kpi.border || 'border-slate-200'} flex flex-col justify-between shadow-sm`}>
+            <div key={i} className={`${kpi.bg || 'bg-slate-50'} min-w-[130px] sm:min-w-[150px] p-3 sm:p-4 rounded-2xl border ${kpi.border || 'border-slate-200'} flex flex-col justify-between shadow-sm`}>
               <div className="flex items-center gap-2 text-slate-500 mb-2">
                 <kpi.icon className="w-4 h-4" />
                 <p className="text-[10px] font-bold uppercase tracking-widest">{kpi.label}</p>
               </div>
-              <p className={`text-2xl font-black ${kpi.color} tabular-nums leading-none`}>{kpi.val}</p>
+              <p className={`text-xl sm:text-2xl font-black ${kpi.color} tabular-nums leading-none`}>{kpi.val}</p>
             </div>
           ))}
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col xl:flex-row overflow-hidden">
+      <main className="flex-1 flex flex-col xl:flex-row overflow-visible xl:overflow-hidden">
         {/* FORM SIDEBAR */}
-        <aside className="xl:w-[400px] shrink-0 border-r border-slate-200 bg-white overflow-y-auto custom-scrollbar z-10">
-          <div className="p-6">
+        <aside className="xl:w-[400px] shrink-0 border-b xl:border-b-0 xl:border-r border-slate-200 bg-white overflow-visible xl:overflow-y-auto custom-scrollbar z-10">
+          <div className="p-4 sm:p-6">
             <div className={`rounded-2xl border transition-all duration-300 ${editingId ? 'border-amber-400 ring-4 ring-amber-50 bg-amber-50/10' : 'border-slate-200 bg-white'} shadow-sm`}>
               <div className={`px-6 py-5 border-b flex items-center justify-between ${editingId ? 'bg-amber-50 border-amber-100' : 'bg-slate-50 border-slate-100'}`}>
                 <h2 className="text-sm font-bold tracking-wide flex items-center gap-2 text-slate-800">
@@ -197,7 +197,7 @@ export default function LiveChickenInventoryPage() {
                 )}
               </div>
 
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                   {/* Particulars Select */}
                   <div>
@@ -229,7 +229,7 @@ export default function LiveChickenInventoryPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-tight mb-1">Crates Count</label>
                       <div className="relative group">
@@ -256,7 +256,7 @@ export default function LiveChickenInventoryPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-tight mb-1">Total Weight (kg)</label>
                       <div className="relative group">
@@ -283,21 +283,21 @@ export default function LiveChickenInventoryPage() {
         </aside>
 
         {/* TABLE SECTION */}
-        <section className="flex-1 flex flex-col bg-slate-50/50 overflow-hidden">
-          <div className="shrink-0 px-8 py-5 border-b border-slate-200 bg-white flex items-center justify-between gap-4">
-            <div className="relative w-full max-w-md">
+        <section className="flex-1 flex flex-col bg-slate-50/50 overflow-hidden min-h-[500px] xl:min-h-0">
+          <div className="shrink-0 px-4 sm:px-8 py-4 sm:py-5 border-b border-slate-200 bg-white flex items-center justify-between gap-4">
+            <div className="relative w-full sm:max-w-md">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input 
                 type="text" placeholder="Search supplier, particulars or date..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-slate-100 border-none rounded-xl text-sm font-medium focus:ring-2 focus:ring-slate-200 outline-none transition-all"
+                className="w-full pl-10 pr-4 py-2 sm:py-2.5 bg-slate-100 border-none rounded-xl text-sm font-medium focus:ring-2 focus:ring-slate-200 outline-none transition-all"
               />
             </div>
           </div>
 
-          <div className="flex-1 p-8 overflow-hidden">
+          <div className="flex-1 p-4 sm:p-8 overflow-hidden flex flex-col">
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full">
-              <div className="overflow-y-auto custom-scrollbar">
-                <table className="w-full text-left border-collapse">
+              <div className="overflow-y-auto overflow-x-auto custom-scrollbar flex-1">
+                <table className="w-full text-left border-collapse min-w-[800px]">
                   <thead className="sticky top-0 bg-slate-50 z-20 border-b border-slate-100">
                     <tr>
                       <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Date</th>

@@ -279,17 +279,17 @@ export default function InventoryPage() {
       {/* --- PREMIUM HEADER --- */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 shrink-0">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Inventory Management</h1>
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Inventory Management</h1>
           <p className="text-sm text-slate-500 mt-1">Control stock levels, pricing, and monitor product loss across operations.</p>
         </div>
-        <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-50 hover:text-slate-900 transition-all shadow-sm">
-            <Download className="w-4 h-4" /> Export CSV
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full md:w-auto">
+          <button className="flex-1 md:flex-none justify-center flex items-center gap-2 px-3 sm:px-4 py-2.5 bg-white border border-slate-200 text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-50 hover:text-slate-900 transition-all shadow-sm">
+            <Download className="w-4 h-4" /> <span className="hidden sm:inline">Export CSV</span><span className="sm:hidden">Export</span>
           </button>
         <button 
           onClick={handleManualSync} 
           disabled={isSyncing}
-          className={`p-2.5 bg-white border border-slate-200 rounded-xl shadow-sm transition-all ${
+          className={`flex justify-center items-center p-2.5 bg-white border border-slate-200 rounded-xl shadow-sm transition-all ${
             isSyncing 
               ? 'text-cyan-600 border-cyan-200 cursor-not-allowed opacity-80' 
               : 'text-slate-400 hover:text-cyan-600 hover:border-cyan-200'
@@ -301,9 +301,9 @@ export default function InventoryPage() {
           {user?.role === 'OWNER' && (
             <button 
               onClick={() => setIsAddModalOpen(true)}
-              className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white text-sm font-bold rounded-xl hover:bg-slate-800 transition-all shadow-md hover:shadow-lg active:scale-95"
+              className="flex-1 md:flex-none justify-center flex items-center gap-2 px-4 sm:px-5 py-2.5 bg-slate-900 text-white text-sm font-bold rounded-xl hover:bg-slate-800 transition-all shadow-md hover:shadow-lg active:scale-95"
             >
-              <Plus className="w-4 h-4" /> Add New Stock
+              <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Add New Stock</span><span className="sm:hidden">Add Stock</span>
             </button>
           )}
         </div>
@@ -348,10 +348,10 @@ export default function InventoryPage() {
       <div className="flex-1 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col h-full">
         
         {/* TABS */}
-        <div className="flex bg-slate-50 border-b border-slate-200">
+        <div className="flex bg-slate-50 border-b border-slate-200 overflow-x-auto">
           <button 
             onClick={() => setActiveTab('INVENTORY')}
-            className={`flex items-center gap-2 px-8 py-4 text-sm font-bold transition-colors relative ${activeTab === 'INVENTORY' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}
+            className={`flex items-center gap-2 px-4 sm:px-8 py-3 sm:py-4 text-sm font-bold transition-colors relative whitespace-nowrap ${activeTab === 'INVENTORY' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}
           >
             <Package className="w-4 h-4" /> Active Stock
             {activeTab === 'INVENTORY' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-slate-900 rounded-t-full" />}
@@ -361,7 +361,7 @@ export default function InventoryPage() {
           {user?.role === 'OWNER' && (
             <button 
               onClick={() => setActiveTab('LOSSES')}
-              className={`flex items-center gap-2 px-8 py-4 text-sm font-bold transition-colors relative ${activeTab === 'LOSSES' ? 'text-orange-600' : 'text-slate-400 hover:text-slate-600'}`}
+              className={`flex items-center gap-2 px-4 sm:px-8 py-3 sm:py-4 text-sm font-bold transition-colors relative whitespace-nowrap ${activeTab === 'LOSSES' ? 'text-orange-600' : 'text-slate-400 hover:text-slate-600'}`}
             >
               <ClipboardList className="w-4 h-4" /> Loss Monitoring
               {activeTab === 'LOSSES' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-orange-600 rounded-t-full" />}
@@ -383,12 +383,12 @@ export default function InventoryPage() {
               />
             </div>
 
-            <div className="flex bg-slate-100 p-1 rounded-xl">
+            <div className="flex w-full sm:w-auto overflow-x-auto bg-slate-100 p-1 rounded-xl">
               {['ALL', 'FROZEN_ITEM', 'CHICKEN_PART'].map((cat) => (
                 <button
                   key={cat}
                   onClick={() => setFilterCategory(cat as any)}
-                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  className={`flex-1 sm:flex-none whitespace-nowrap px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
                     filterCategory === cat ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
                   }`}
                 >
@@ -402,7 +402,7 @@ export default function InventoryPage() {
         {/* TABLE WRAPPER */}
         <div className="flex-1 overflow-auto">
           {activeTab === 'INVENTORY' && (
-            <table className="w-full text-left text-sm whitespace-nowrap">
+            <table className="w-full text-left text-sm whitespace-nowrap min-w-[700px]">
               <thead className="bg-white sticky top-0 z-10 shadow-[0_1px_0_0_#e2e8f0]">
                 <tr className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                   <th className="px-6 py-4">Product Details</th>
@@ -517,7 +517,7 @@ export default function InventoryPage() {
 
           {/* LOSS MONITORING TABLE */}
           {activeTab === 'LOSSES' && (
-            <table className="w-full text-left text-sm whitespace-nowrap">
+            <table className="w-full text-left text-sm whitespace-nowrap min-w-[700px]">
               <thead className="bg-white sticky top-0 z-10 shadow-[0_1px_0_0_#e2e8f0]">
                 <tr className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                   <th className="px-6 py-4">Date Recorded</th>
@@ -581,7 +581,7 @@ export default function InventoryPage() {
       {/* --- ADD NEW STOCK MODAL --- */}
       <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Register New Stock">
         <form onSubmit={handleSubmit(onAddStock)} className="space-y-5 mt-2">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Date Received</label>
               <input {...register('date', { required: true })} type="date" className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-slate-400 focus:bg-white transition-all" />
@@ -621,7 +621,7 @@ export default function InventoryPage() {
             <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Quantity Details</h4>
             
             {isAddDressedChicken && (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Head Count</label>
                   <input {...register('heads', { required: true, min: 0 })} type="number" step="1" className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:border-blue-500 shadow-sm" placeholder="0" />
@@ -648,7 +648,7 @@ export default function InventoryPage() {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Purchase Cost (₱)</label>
               <input {...register('purchase_price', { required: true, min: 0 })} type="number" step="0.01" className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-slate-400 focus:bg-white transition-all font-medium text-slate-700" placeholder="0.00" />
@@ -659,9 +659,9 @@ export default function InventoryPage() {
             </div>
           </div>
 
-          <div className="pt-4 border-t border-slate-100 flex justify-end gap-3">
+          <div className="pt-4 border-t border-slate-100 flex flex-col-reverse sm:flex-row justify-end gap-3">
             <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-5 py-2.5 text-sm font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition-colors">Cancel</button>
-            <button type="submit" className="px-5 py-2.5 text-sm font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl shadow-md transition-all active:scale-95 flex items-center gap-2">
+            <button type="submit" className="px-5 py-2.5 text-sm font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl shadow-md transition-all active:scale-95 flex justify-center items-center gap-2">
               <Plus className="w-4 h-4" /> Save to Inventory
             </button>
           </div>
@@ -688,7 +688,7 @@ export default function InventoryPage() {
 
           <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-4">
             {isEditDressedChicken && (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Heads</label>
                   <input {...editForm.register('heads', { min: 0 })} type="number" step="1" className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:border-blue-500" />
@@ -715,7 +715,7 @@ export default function InventoryPage() {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Purchase (₱)</label>
               <input {...editForm.register('purchase_price', { min: 0 })} type="number" step="0.01" className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500 font-medium" />
@@ -726,9 +726,9 @@ export default function InventoryPage() {
             </div>
           </div>
 
-          <div className="pt-4 border-t border-slate-100 flex justify-end gap-3">
+          <div className="pt-4 border-t border-slate-100 flex flex-col-reverse sm:flex-row justify-end gap-3">
              <button type="button" onClick={() => setEditingItem(null)} className="px-5 py-2.5 text-sm font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition-colors">Cancel</button>
-             <button type="submit" className="px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md transition-all active:scale-95">Update Changes</button>
+             <button type="submit" className="px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md transition-all active:scale-95 flex justify-center items-center">Update Changes</button>
           </div>
         </form>
       </Modal>
@@ -745,7 +745,7 @@ export default function InventoryPage() {
           </div>
 
           {isLossDressedChicken && (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Heads Lost</label>
                 <input {...lossForm.register('heads', { required: true, min: 0 })} type="number" step="1" className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-orange-500 shadow-sm" placeholder="0" />
@@ -769,9 +769,9 @@ export default function InventoryPage() {
             <textarea {...lossForm.register('reason', { required: true })} rows={3} className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-orange-500 shadow-sm" placeholder="e.g. Spoilage, transit damage..." />
           </div>
 
-          <div className="pt-4 border-t border-slate-100 flex justify-end gap-3">
+          <div className="pt-4 border-t border-slate-100 flex flex-col-reverse sm:flex-row justify-end gap-3">
             <button type="button" onClick={() => { setLossItem(null); lossForm.reset(); }} className="px-5 py-2.5 text-sm font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition-colors">Cancel</button>
-            <button type="submit" className="px-5 py-2.5 text-sm font-bold text-white bg-orange-600 hover:bg-orange-700 rounded-xl shadow-md transition-all active:scale-95 flex items-center gap-2">
+            <button type="submit" className="px-5 py-2.5 text-sm font-bold text-white bg-orange-600 hover:bg-orange-700 rounded-xl shadow-md transition-all active:scale-95 flex justify-center items-center gap-2">
               <CheckCircle2 className="w-4 h-4" /> Confirm Loss
             </button>
           </div>

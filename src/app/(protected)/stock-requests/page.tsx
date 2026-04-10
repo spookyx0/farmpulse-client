@@ -124,10 +124,10 @@ export default function StockRequestPage() {
   };
 
   return (
-    <div className="p-6 space-y-6 bg-slate-50 min-h-screen">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 bg-slate-50 min-h-screen">
       
       {/* HEADER */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
             <ClipboardList className="w-6 h-6 text-slate-600" /> Stock Requests
@@ -142,7 +142,7 @@ export default function StockRequestPage() {
         {user?.role !== 'OWNER' && (
           <button 
             onClick={() => setIsModalOpen(true)}
-            className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2.5 rounded-lg flex items-center gap-2 shadow-sm font-semibold transition-all active:scale-95"
+            className="w-full sm:w-auto justify-center bg-slate-800 hover:bg-slate-700 text-white px-4 py-2.5 rounded-lg flex items-center gap-2 shadow-sm font-semibold transition-all active:scale-95"
           >
             <Plus className="w-4 h-4" /> New Request
           </button>
@@ -164,7 +164,7 @@ export default function StockRequestPage() {
             <div key={req.id} className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-6 justify-between items-start md:items-center">
               
               {/* Request Info */}
-              <div className="flex-1 space-y-2">
+              <div className="flex-1 w-full space-y-2">
                 <div className="flex items-center gap-3 mb-2">
                   <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${getStatusColor(req.status)}`}>
                     {req.status}
@@ -202,16 +202,16 @@ export default function StockRequestPage() {
 
               {/* Owner Actions */}
               {user?.role === 'OWNER' && req.status === 'PENDING' && (
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row w-full md:w-auto gap-2">
                   <button 
                     onClick={() => setActionModal({ id: req.id, action: 'APPROVED' })}
-                    className="flex items-center gap-1 px-3 py-2 bg-green-50 text-green-700 hover:bg-green-100 rounded-lg text-sm font-bold transition-colors"
+                    className="flex-1 md:flex-none justify-center flex items-center gap-1 px-3 py-2 bg-green-50 text-green-700 hover:bg-green-100 rounded-lg text-sm font-bold transition-colors"
                   >
                     <CheckCircle className="w-4 h-4" /> Approve
                   </button>
                   <button 
                     onClick={() => setActionModal({ id: req.id, action: 'REJECTED' })}
-                    className="flex items-center gap-1 px-3 py-2 bg-red-50 text-red-700 hover:bg-red-100 rounded-lg text-sm font-bold transition-colors"
+                    className="flex-1 md:flex-none justify-center flex items-center gap-1 px-3 py-2 bg-red-50 text-red-700 hover:bg-red-100 rounded-lg text-sm font-bold transition-colors"
                   >
                     <XCircle className="w-4 h-4" /> Reject
                   </button>
@@ -226,8 +226,8 @@ export default function StockRequestPage() {
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="New Stock Request">
         <div className="space-y-4">
           <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-3">
-             <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2">
+             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="sm:col-span-2">
                    <label className="text-xs font-bold text-slate-500 uppercase">Item Name</label>
                    <input 
                       type="text" 
@@ -270,11 +270,11 @@ export default function StockRequestPage() {
           </div>
 
           {/* List Preview */}
-          <div className="max-h-40 overflow-y-auto border rounded-lg">
+          <div className="max-h-40 overflow-y-auto overflow-x-auto border rounded-lg">
              {currentItems.length === 0 ? (
                 <p className="text-center text-slate-400 text-sm py-4">No items added yet.</p>
              ) : (
-                <table className="w-full text-sm text-left">
+                <table className="w-full text-sm text-left min-w-[300px]">
                    <thead className="bg-slate-100 text-slate-500 text-xs uppercase">
                       <tr>
                          <th className="p-2">Item</th>
@@ -327,11 +327,11 @@ export default function StockRequestPage() {
                   onChange={(e) => setAdminNote(e.target.value)}
                />
             </div>
-            <div className="flex justify-end gap-3">
-               <button onClick={() => setActionModal(null)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded">Cancel</button>
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-3">
+               <button onClick={() => setActionModal(null)} className="w-full sm:w-auto px-4 py-2 text-slate-600 hover:bg-slate-100 rounded transition-colors">Cancel</button>
                <button 
                   onClick={handleStatusUpdate}
-                  className={`px-4 py-2 text-white font-bold rounded shadow-md ${
+                  className={`w-full sm:w-auto px-4 py-2 text-white font-bold rounded shadow-md transition-colors ${
                      actionModal?.action === 'APPROVED' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'
                   }`}
                >

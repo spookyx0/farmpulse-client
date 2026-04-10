@@ -145,7 +145,7 @@ export default function Sidebar() {
       <nav className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#111827] text-slate-300 flex flex-col shadow-2xl border-r border-slate-800 transform transition-transform duration-300 ease-in-out md:relative md:h-screen md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         
         {/* Centered Logo Header */}
-        <div className="h-20 relative flex items-center justify-center border-b border-slate-800 bg-[#0f172a] shrink-0">
+        <div className="h-20 relative flex items-center justify-center border-slate-900 bg-[#0f172a] shrink-0">
           <Link href="/dashboard" className="flex items-center justify-center">
             <Image 
               src="/LSBLogo.png" 

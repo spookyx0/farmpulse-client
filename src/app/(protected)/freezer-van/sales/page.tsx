@@ -161,9 +161,9 @@ export default function FreezerVanSalesPage() {
   );
 
   return (
-    <div className="h-screen w-full bg-slate-50 text-slate-900 flex flex-col overflow-hidden">
+    <div className="h-screen w-full bg-slate-50 text-slate-900 flex flex-col overflow-y-auto lg:overflow-hidden">
       
-      <header className="shrink-0 bg-white border-b border-slate-200 px-6 py-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 z-20 shadow-sm">
+      <header className="shrink-0 bg-white border-b border-slate-200 px-4 sm:px-6 py-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 z-20 shadow-sm">
         <div className="flex items-center gap-3">
           <div className="p-2.5 bg-indigo-600 rounded-xl shadow-indigo-100 shadow-lg">
             <Snowflake className="w-5 h-5 text-white" />
@@ -174,21 +174,21 @@ export default function FreezerVanSalesPage() {
           </div>
         </div>
 
-        <div className="flex gap-3">
-          <div className="bg-slate-900 px-5 py-3 rounded-2xl min-w-[140px] shadow-lg shadow-slate-200">
+        <div className="flex gap-3 overflow-x-auto pb-2 lg:pb-0 hide-scrollbar">
+          <div className="bg-slate-900 px-4 sm:px-5 py-3 rounded-2xl min-w-[140px] shadow-lg shadow-slate-200">
             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Net Income</p>
             <p className="text-xl font-black text-white tabular-nums">₱{totals.net.toLocaleString()}</p>
           </div>
-          <div className="bg-indigo-50 border border-indigo-100 px-5 py-3 rounded-2xl min-w-[120px]">
+          <div className="bg-indigo-50 border border-indigo-100 px-4 sm:px-5 py-3 rounded-2xl min-w-[120px]">
             <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mb-1">Vol. Out (kg)</p>
             <p className="text-xl font-black text-indigo-900 tabular-nums">{totals.totalKilos.toFixed(2)}</p>
           </div>
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+      <main className="flex-1 flex flex-col lg:flex-row overflow-visible lg:overflow-hidden">
         
-        <aside className="lg:w-[400px] shrink-0 border-r border-slate-200 bg-white overflow-y-auto p-6 z-10 custom-scrollbar">
+        <aside className="lg:w-[400px] shrink-0 border-b lg:border-b-0 lg:border-r border-slate-200 bg-white overflow-visible lg:overflow-y-auto p-4 sm:p-6 z-10 custom-scrollbar">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
@@ -229,7 +229,7 @@ export default function FreezerVanSalesPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Weight (kg)</label>
                   <input type="number" step="0.01" {...register('kilos', {required: true})} className="w-full mt-1 p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono font-bold" />
@@ -244,7 +244,7 @@ export default function FreezerVanSalesPage() {
               </div>
 
               {/* RESTRICTED SECTION: Only for Whole Chicken */}
-              <div className={`grid grid-cols-2 gap-4 p-5 rounded-2xl border transition-all duration-300 ${isWholeChicken ? 'bg-indigo-50/50 border-indigo-100/50' : 'bg-slate-100 border-slate-200 opacity-60'}`}>
+              <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 sm:p-5 rounded-2xl border transition-all duration-300 ${isWholeChicken ? 'bg-indigo-50/50 border-indigo-100/50' : 'bg-slate-100 border-slate-200 opacity-60'}`}>
                 <div>
                   <label className={`text-[10px] font-bold uppercase flex items-center gap-1 mb-1 ${isWholeChicken ? 'text-indigo-400' : 'text-slate-400'}`}>
                     <Hash className="w-3 h-3"/> Heads
@@ -299,26 +299,28 @@ export default function FreezerVanSalesPage() {
           </form>
         </aside>
 
-        <section className="flex-1 flex flex-col bg-white overflow-hidden">
-          <div className="px-8 py-5 border-b border-slate-100 flex items-center justify-between bg-white/80 backdrop-blur-md sticky top-0 z-10">
-            <div className="relative w-full max-w-md">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input 
-                type="text" 
-                placeholder="Search history..." 
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-full text-xs focus:ring-2 focus:ring-indigo-500 outline-none transition-all focus:bg-white"
-              />
-            </div>
-            <div className="hidden md:flex items-center gap-2 text-slate-400">
-              <ShoppingBag className="w-4 h-4" />
-              <span className="text-[10px] font-black uppercase tracking-widest">{totals.count} Records</span>
+        <section className="flex-1 flex flex-col bg-white overflow-hidden min-h-[500px] lg:min-h-0">
+          <div className="px-4 sm:px-8 py-4 sm:py-5 border-b border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white/80 backdrop-blur-md sticky top-0 z-10">
+            <div className="flex w-full justify-between items-center gap-4">
+              <div className="relative w-full sm:max-w-md">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input 
+                  type="text" 
+                  placeholder="Search history..." 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-11 pr-4 py-2 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-full text-xs focus:ring-2 focus:ring-indigo-500 outline-none transition-all focus:bg-white"
+                />
+              </div>
+              <div className="hidden md:flex items-center gap-2 text-slate-400 shrink-0">
+                <ShoppingBag className="w-4 h-4" />
+                <span className="text-[10px] font-black uppercase tracking-widest">{totals.count} Records</span>
+              </div>
             </div>
           </div>
 
-          <div className="flex-1 overflow-auto custom-scrollbar">
-            <table className="w-full text-left border-separate border-spacing-0">
+          <div className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar">
+            <table className="w-full text-left border-separate border-spacing-0 min-w-[700px]">
               <thead className="bg-slate-50/50 sticky top-0 backdrop-blur-md z-10">
                 <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                   <th className="px-8 py-5 border-b border-slate-100">Date & Logistics</th>

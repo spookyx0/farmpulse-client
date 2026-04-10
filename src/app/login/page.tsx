@@ -84,7 +84,7 @@ export default function LoginPage() {
     <div className="min-h-screen w-full flex flex-col md:flex-row bg-white">
       
         {/* Left Side - Login Form */}
-        <div className="w-full md:w-1/2 lg:w-1/2 p-8 md:p-12 flex flex-col justify-between bg-white relative">
+        <div className="w-full md:w-1/2 lg:w-1/2 px-6 py-10 sm:p-8 md:p-12 flex flex-col justify-between bg-white relative min-h-[100dvh] md:min-h-0">
           <div className="flex flex-col items-center w-full text-center">
             <div className="mb-4 animate-in fade-in zoom-in duration-700">
               <Image src="/LSBLogo.png" alt="LSB Logo" width={120} height={120} className="rounded-2xl shadow-lg" />
@@ -221,7 +221,7 @@ export default function LoginPage() {
         </div>
 
         {/* Right Side - Informative/Branding */}
-        <div className="flex-1 bg-slate-900 p-12 text-white flex flex-col justify-center items-center relative overflow-hidden m-6 rounded-[3rem] shadow-2xl">
+        <div className="flex-1 bg-slate-900 p-8 md:p-12 text-white flex flex-col justify-center items-center relative overflow-hidden m-4 md:m-6 rounded-3xl md:rounded-[3rem] shadow-2xl">
           <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 z-0"></div>
           <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-transparent via-green-900/5 to-blue-900/5 z-0"></div>
           <div className="absolute -right-20 -top-20 w-96 h-96 bg-green-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '4s', transform: `translate(${mousePos.x}px, ${mousePos.y}px)` }}></div>
@@ -230,7 +230,7 @@ export default function LoginPage() {
           
           <div className="relative z-10 flex flex-col items-center w-full">
             <div className="text-center mb-10">
-              <h3 className="text-3xl font-bold text-white mb-3 tracking-tight">System Role Previews</h3>
+              <h3 className="text-2xl sm:text-3xl font-bold text-white mb-3 tracking-tight">System Role Previews</h3>
               <p className="text-slate-400 text-lg max-w-md mx-auto">Explore the tailored interfaces designed for different levels of access.</p>
             </div>
 
@@ -244,7 +244,7 @@ export default function LoginPage() {
                 alt="Owner View" 
                 width={380} 
                 height={280} 
-                className="rounded-xl shadow-2xl border border-slate-700/50 transition-all duration-500 group-hover:scale-105 group-hover:shadow-[0_0_40px_rgba(34,197,94,0.4)] group-hover:border-green-500/50" 
+                className="w-full max-w-[280px] sm:max-w-[380px] h-auto rounded-xl shadow-2xl border border-slate-700/50 transition-all duration-500 group-hover:scale-105 group-hover:shadow-[0_0_40px_rgba(34,197,94,0.4)] group-hover:border-green-500/50" 
               />
               <span className="text-slate-400 font-bold tracking-widest uppercase text-sm group-hover:text-white transition-colors">Owner</span>
             </button>
@@ -257,7 +257,7 @@ export default function LoginPage() {
                 alt="Staff View" 
                 width={380} 
                 height={280} 
-                className="rounded-xl shadow-2xl border border-slate-700/50 transition-all duration-500 group-hover:scale-105 group-hover:shadow-[0_0_40px_rgba(34,197,94,0.4)] group-hover:border-green-500/50" 
+                className="w-full max-w-[280px] sm:max-w-[380px] h-auto rounded-xl shadow-2xl border border-slate-700/50 transition-all duration-500 group-hover:scale-105 group-hover:shadow-[0_0_40px_rgba(34,197,94,0.4)] group-hover:border-green-500/50" 
               />
               <span className="text-slate-400 font-bold tracking-widest uppercase text-sm group-hover:text-white transition-colors">Staff</span>
             </button>

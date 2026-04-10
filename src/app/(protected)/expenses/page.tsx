@@ -127,13 +127,13 @@ export default function ExpensesPage() {
   });
 
   return (
-    <div className="flex flex-col h-[calc(90vh-3rem)] gap-4">
+    <div className="flex flex-col h-full lg:h-[calc(90vh-3rem)] gap-4">
       
       {/* --- TOP SECTION (Header + KPIs) --- */}
       <div className="shrink-0 space-y-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-            <h1 className="text-3xl font-bold text-slate-800 flex items-center gap-3">
+            <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 flex items-center gap-2 sm:gap-3">
                 <DollarSign className="w-8 h-8 text-rose-600" />
                 Expenses Management
             </h1>
@@ -207,7 +207,7 @@ export default function ExpensesPage() {
                 </div>
 
                 {/* Amount & Date Row */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Date</label>
                         <div className="relative">
@@ -278,12 +278,12 @@ export default function ExpensesPage() {
                 </div>
                 
                 {/* Filter Tabs */}
-                <div className="flex bg-slate-50 p-1 rounded-lg border border-slate-100">
+                <div className="flex w-full sm:w-auto overflow-x-auto bg-slate-50 p-1 rounded-lg border border-slate-100">
                     {['ALL', 'BRANCH', 'LOGISTICS'].map((cat) => (
                         <button
                             key={cat}
                             onClick={() => setCategoryFilter(cat as any)}
-                            className={`px-3 py-1.5 rounded-md text-xs font-bold whitespace-nowrap transition-all ${
+                            className={`flex-1 sm:flex-none px-3 py-1.5 rounded-md text-xs font-bold whitespace-nowrap transition-all ${
                                 categoryFilter === cat 
                                 ? 'bg-white text-rose-600 shadow-sm' 
                                 : 'text-slate-500 hover:text-slate-700'
@@ -296,8 +296,8 @@ export default function ExpensesPage() {
             </div>
 
             {/* FIXED HEIGHT CONTAINER: Shows approx 7-8 items before scrolling */}
-            <div className="overflow-y-auto h-[600px]">
-              <table className="w-full text-left text-sm text-slate-600">
+            <div className="overflow-y-auto overflow-x-auto h-[400px] sm:h-[600px] custom-scrollbar">
+              <table className="w-full text-left text-sm text-slate-600 min-w-[500px]">
                 <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase font-bold text-slate-400 sticky top-0 z-10 shadow-sm">
                   <tr>
                     <th className="px-6 py-4 bg-slate-50">Date</th>

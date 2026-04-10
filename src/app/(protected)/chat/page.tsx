@@ -51,7 +51,6 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [isMobileView, setIsMobileView] = useState(false);
   const [showChatOnMobile, setShowChatOnMobile] = useState(false);
   const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
@@ -69,14 +68,6 @@ export default function ChatPage() {
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
 
   useEffect(() => { scrollToBottom(); }, [messages, previewUrl]);
-
-  // Responsive logic
-  useEffect(() => {
-    const handleResize = () => setIsMobileView(window.innerWidth < 768);
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   // Fetch Contacts
   useEffect(() => {
@@ -265,10 +256,10 @@ export default function ChatPage() {
         }
       `}</style>
 
-      <div className="flex w-full h-[850] bg-white overflow-hidden relative font-sans">
+      <div className="flex w-full h-[calc(100vh-2rem)] lg:h-[calc(90vh-2rem)] bg-white overflow-hidden relative font-sans rounded-2xl border border-slate-200 shadow-sm">
         
         {/* Sidebar */}
-        <div className={`${isMobileView && showChatOnMobile ? 'hidden' : 'flex flex-col'} w-full md:w-80 border-r border-slate-200 bg-white z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)] h-full`}>
+        <div className={`${showChatOnMobile ? 'hidden md:flex' : 'flex'} flex-col w-full md:w-80 border-r border-slate-200 bg-white z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)] h-full shrink-0`}>
           {/* Sidebar Header */}
           <div className="flex-none p-5 border-b border-slate-100 bg-white/80 backdrop-blur-md sticky top-0 z-10">
             <h2 className="text-2xl font-bold text-slate-800 mb-4 tracking-tight">Messages</h2>
@@ -332,17 +323,15 @@ export default function ChatPage() {
         </div>
 
         {/* Chat Area */}
-        <div className={`${isMobileView && !showChatOnMobile ? 'hidden' : 'flex flex-col'} flex-1 bg-slate-50/50 relative w-full h-full`}>
+        <div className={`${!showChatOnMobile ? 'hidden md:flex' : 'flex'} flex-col flex-1 bg-slate-50/50 relative w-full h-full min-w-0`}>
           {selectedContact ? (
             <>
               {/* Chat Header */}
-              <div className="flex-none h-20 px-6 flex items-center justify-between bg-white/80 backdrop-blur-sm border-b border-slate-200 z-10">
-                <div className="flex items-center gap-4">
-                  {isMobileView && (
-                    <button onClick={() => setShowChatOnMobile(false)} className="p-2 -ml-2 hover:bg-slate-100 rounded-full transition-colors">
-                      <ArrowLeft className="w-5 h-5 text-slate-600" />
-                    </button>
-                  )}
+              <div className="flex-none h-20 px-4 md:px-6 flex items-center justify-between bg-white/80 backdrop-blur-sm border-b border-slate-200 z-10">
+                <div className="flex items-center gap-3 sm:gap-4">
+                  <button onClick={() => setShowChatOnMobile(false)} className="md:hidden p-2 -ml-2 hover:bg-slate-100 rounded-full transition-colors">
+                    <ArrowLeft className="w-5 h-5 text-slate-600" />
+                  </button>
                   <div className="relative">
                     <div className="w-11 h-11 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden border border-slate-100 shadow-sm">
                       {selectedContact.avatar && !imgErrors[selectedContact.id] ? (
@@ -361,11 +350,11 @@ export default function ChatPage() {
                   </div>
                 </div>
                 
-                <div className="flex items-center gap-1">
-                  <button className="p-2.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-full transition-all duration-200"><Phone className="w-5 h-5" /></button>
-                  <button className="p-2.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-full transition-all duration-200"><Video className="w-5 h-5" /></button>
-                  <div className="w-px h-6 bg-slate-200 mx-2"></div>
-                  <button className="p-2.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all duration-200"><MoreVertical className="w-5 h-5" /></button>
+                <div className="flex items-center gap-0 sm:gap-1">
+                  <button className="hidden sm:block p-2.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-full transition-all duration-200"><Phone className="w-5 h-5" /></button>
+                  <button className="hidden sm:block p-2.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-full transition-all duration-200"><Video className="w-5 h-5" /></button>
+                  <div className="hidden sm:block w-px h-6 bg-slate-200 mx-2"></div>
+                  <button className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all duration-200"><MoreVertical className="w-5 h-5" /></button>
                 </div>
               </div>
 
@@ -444,23 +433,23 @@ export default function ChatPage() {
                     </div>
                   )}
 
-                  <form onSubmit={handleSendMessage} className="flex items-end gap-3 w-full">
-                    <div className="flex gap-1 pb-1">
+                  <form onSubmit={handleSendMessage} className="flex items-end gap-2 sm:gap-3 w-full">
+                    <div className="flex gap-0 sm:gap-1 pb-1">
                         <input type="file" ref={fileInputRef} className="hidden" onChange={(e) => handleFileSelect(e, 'file')} />
                         <input type="file" ref={imageInputRef} className="hidden" accept="image/*" onChange={(e) => handleFileSelect(e, 'image')} />
                         
-                        <button type="button" onClick={() => fileInputRef.current?.click()} className="p-2.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-full transition-all active:scale-95"><Paperclip className="w-5 h-5" /></button>
-                        <button type="button" onClick={() => imageInputRef.current?.click()} className="p-2.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-full transition-all active:scale-95"><ImageIcon className="w-5 h-5" /></button>
-                        <button type="button" className="p-2.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-full transition-all active:scale-95 hidden sm:block"><Smile className="w-5 h-5" /></button>
+                        <button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 sm:p-2.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-full transition-all active:scale-95"><Paperclip className="w-5 h-5" /></button>
+                        <button type="button" onClick={() => imageInputRef.current?.click()} className="p-2 sm:p-2.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-full transition-all active:scale-95"><ImageIcon className="w-5 h-5" /></button>
+                        <button type="button" className="hidden sm:block p-2.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-full transition-all active:scale-95"><Smile className="w-5 h-5" /></button>
                     </div>
                     
-                    <div className="flex-1 bg-slate-100 rounded-3xl flex items-center border border-transparent focus-within:border-emerald-500/50 focus-within:bg-white focus-within:ring-4 focus-within:ring-emerald-500/10 transition-all duration-200">
+                    <div className="flex-1 bg-slate-100 rounded-2xl sm:rounded-3xl flex items-center border border-transparent focus-within:border-emerald-500/50 focus-within:bg-white focus-within:ring-4 focus-within:ring-emerald-500/10 transition-all duration-200">
                       <input
                         type="text"
                         value={newMessage}
                         onChange={handleInputChange}
                         placeholder={selectedFile ? "Add a caption..." : "Type a message..."}
-                        className="w-full bg-transparent border-none px-6 py-3.5 focus:ring-0 text-[15px] text-slate-800 placeholder:text-slate-400 max-h-32"
+                        className="w-full bg-transparent border-none px-4 sm:px-6 py-2.5 sm:py-3.5 focus:ring-0 text-[15px] text-slate-800 placeholder:text-slate-400 max-h-32"
                       />
                     </div>
 

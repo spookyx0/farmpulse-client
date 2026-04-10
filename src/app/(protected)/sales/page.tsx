@@ -150,7 +150,7 @@ export default function SalesPage() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(90vh-3rem)] gap-4">
+    <div className="flex flex-col h-full lg:h-[calc(90vh-3rem)] gap-4">
       
       {/* --- HEADER --- */}
       <div className="shrink-0">
@@ -165,17 +165,17 @@ export default function SalesPage() {
                 </div>
             </div>
             
-            <div className="flex items-center gap-6 px-6 py-2 bg-slate-50 rounded-lg border border-slate-100">
-               <div className="text-right">
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Session Revenue</p>
-                  <p className="text-2xl font-bold text-emerald-600 font-mono">
+            <div className="flex flex-row items-center justify-between md:justify-end gap-4 md:gap-6 px-4 md:px-6 py-3 bg-slate-50 rounded-lg border border-slate-100 w-full md:w-auto">
+               <div className="text-left md:text-right">
+                  <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider">Session Revenue</p>
+                  <p className="text-xl sm:text-2xl font-bold text-emerald-600 font-mono">
                     ₱{totalRevenue.toLocaleString(undefined, {minimumFractionDigits: 2})}
                   </p>
                </div>
-               <div className="hidden md:block w-px h-10 bg-slate-200"></div>
-               <div className="hidden md:block text-right">
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Transactions</p>
-                  <p className="text-xl font-bold text-slate-700">{sales.length}</p>
+               <div className="w-px h-10 bg-slate-200"></div>
+               <div className="text-right">
+                  <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider">Transactions</p>
+                  <p className="text-lg sm:text-xl font-bold text-slate-700">{sales.length}</p>
                </div>
             </div>
         </div>
@@ -196,7 +196,7 @@ export default function SalesPage() {
               <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
                 
                 {/* Cart Items Area - FIXED HEIGHT SCROLLABLE (~5 Items) */}
-                <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-200 space-y-3 h-[410px] overflow-y-auto">
+                <div className="bg-slate-50/50 p-2 sm:p-3 rounded-xl border border-slate-200 space-y-3 h-[300px] sm:h-[410px] overflow-y-auto custom-scrollbar">
                   {fields.map((field, index) => {
                     const currentProductId = Number(formItems[index]?.productId);
                     const selectedInv = inventory.find(i => i.productId === currentProductId);
@@ -223,7 +223,7 @@ export default function SalesPage() {
                             </select>
                           </div>
 
-                          <div className="flex gap-2 items-center">
+                          <div className="flex gap-2 items-center w-full">
                             {/* Quantity Input */}
                             <div className="flex-1 relative">
                                 <span className="absolute left-3 top-2.5 text-xs font-bold text-slate-400">Qty</span>
@@ -274,7 +274,7 @@ export default function SalesPage() {
                             <Calculator className="w-5 h-5 text-emerald-400" />
                             <span className="text-sm font-bold uppercase tracking-wider opacity-80">Total Due</span>
                         </div>
-                        <div className="text-3xl font-bold font-mono tracking-tight">
+                        <div className="text-2xl sm:text-3xl font-bold font-mono tracking-tight truncate pl-2">
                             <span className="text-emerald-400 mr-1">₱</span>
                             {calculateEstimatedTotal().toLocaleString(undefined, {minimumFractionDigits: 2})}
                         </div>
@@ -326,8 +326,8 @@ export default function SalesPage() {
             </div>
 
             {/* Table Area - FIXED HEIGHT SCROLLABLE (~5 Items) */}
-            <div className="overflow-y-auto h-[650px]">
-              <table className="w-full text-left text-sm text-slate-600">
+            <div className="overflow-y-auto overflow-x-auto h-[400px] xl:h-[650px] custom-scrollbar">
+              <table className="w-full text-left text-sm text-slate-600 min-w-[500px]">
                 <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase font-bold text-slate-400 sticky top-0 z-10 shadow-sm">
                   <tr>
                     <th className="px-6 py-4 bg-slate-50">Receipt Info</th>
@@ -339,7 +339,7 @@ export default function SalesPage() {
                   {filteredSales.map((sale) => (
                     <tr key={sale.id} className="hover:bg-emerald-50/30 transition-colors group cursor-default">
                       {/* ID & Date */}
-                      <td className="px-6 py-4 align-top w-56">
+                      <td className="px-6 py-4 align-top w-48 sm:w-56">
                         <div className="flex items-center gap-2 mb-1.5">
                            <Receipt className="w-4 h-4 text-slate-300 group-hover:text-emerald-500 transition-colors" />
                            <span className="font-mono text-xs font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 group-hover:border-emerald-200 transition-colors">#{sale.id}</span>
@@ -367,7 +367,7 @@ export default function SalesPage() {
 
                       {/* Total Amount */}
                       <td className="px-6 py-4 align-top text-right">
-                        <div className="font-mono font-bold text-lg text-emerald-600">
+                        <div className="font-mono font-bold text-base sm:text-lg text-emerald-600">
                             ₱{Number(sale.total_amount).toLocaleString(undefined, {minimumFractionDigits: 2})}
                         </div>
                         <div className="text-[10px] uppercase font-bold text-emerald-400 mt-1">Paid</div>

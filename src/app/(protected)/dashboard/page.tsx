@@ -262,10 +262,10 @@ useEffect(() => {
 
   // --- REUSABLE HEADER COMPONENT ---
   const DashboardHeader = ({ title, subtitle, badgeText, badgeColor = 'blue', children }: any) => (
-    <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-8">
+    <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-100 mb-6 sm:mb-8">
         <div>
             <div className="flex items-center gap-3 mb-1">
-                <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{title}</h1>
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">{title}</h1>
                 {badgeText && (
                     <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold bg-${badgeColor}-50 text-${badgeColor}-600 border border-${badgeColor}-100 uppercase tracking-wide`}>
                         {badgeText}
@@ -278,7 +278,7 @@ useEffect(() => {
             </p>
         </div>
         
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto mt-2 xl:mt-0">
              {/* Filter Controls passed as children */}
              {children}
 
@@ -322,12 +322,12 @@ useEffect(() => {
             badgeColor="indigo"
         >
             {/* --- PERIOD FILTER: Located Beside Date --- */}
-            <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+            <div className="flex flex-wrap sm:flex-nowrap bg-slate-100 p-1 rounded-xl border border-slate-200 w-full sm:w-auto gap-1 sm:gap-0 overflow-x-auto">
                 {(['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'] as TimePeriod[]).map((period) => (
                     <button
                         key={period}
                         onClick={() => setSelectedPeriod(period)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        className={`flex-1 sm:flex-none whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                             selectedPeriod === period
                             ? 'bg-white text-indigo-600 shadow-sm text-shadow-sm'
                             : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
@@ -343,7 +343,7 @@ useEffect(() => {
         <div className={`transition-opacity duration-200 ${isRefreshing ? 'opacity-60 pointer-events-none grayscale-[0.5]' : 'opacity-100'}`}>
             
             {/* 5-Column KPI Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-5 mb-6 sm:mb-8">
             <KPICard 
                 title={`${selectedPeriod.charAt(0) + selectedPeriod.slice(1).toLowerCase()} Revenue`} 
                 value={`₱${ownerSummary?.totalSales.toLocaleString(undefined, {minimumFractionDigits: 2})}`} 
@@ -381,7 +381,7 @@ useEffect(() => {
                 </div>
                 <button className="p-2 hover:bg-slate-50 rounded-lg text-slate-400 hover:text-indigo-600 transition-colors"><Download className="w-4 h-4"/></button>
                 </div>
-                <div className="p-6 h-[400px]">
+                <div className="p-4 sm:p-6 h-[300px] sm:h-[400px]">
                 <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={barData} barSize={60}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -404,7 +404,7 @@ useEffect(() => {
                     <h3 className="text-lg font-bold text-slate-800">Distribution</h3>
                     <p className="text-sm text-slate-500">Sales composition ({selectedPeriod.toLowerCase()})</p>
                 </div>
-                <div className="p-6 h-[400px] relative">
+                <div className="p-4 sm:p-6 h-[300px] sm:h-[400px] relative">
                 <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                     <Pie 
@@ -506,7 +506,7 @@ useEffect(() => {
             badgeColor="emerald" 
         />
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 sm:mb-8">
           <KPICard title="Today's Sales" value={`₱${staffSummary?.dailySales.toLocaleString(undefined, {minimumFractionDigits: 2})}`} icon={<DollarSign className="w-5 h-5" />} color="emerald" />
           <KPICard title="Today's Expenses" value={`₱${staffSummary?.dailyExpenses.toLocaleString(undefined, {minimumFractionDigits: 2})}`} icon={<TrendingDown className="w-5 h-5" />} color="rose" />
           <KPICard title="Today's Profit" value={`₱${staffSummary?.dailyProfit.toLocaleString(undefined, {minimumFractionDigits: 2})}`} icon={<Wallet className="w-5 h-5" />} color="indigo" />
@@ -522,8 +522,8 @@ useEffect(() => {
                    <p className="text-sm text-slate-500">Today's local activity</p>
                  </div>
               </div>
-              <div className="max-h-[500px] overflow-y-auto custom-scrollbar">
-                <table className="w-full text-left border-collapse">
+              <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar">
+                <table className="w-full text-left border-collapse min-w-[400px]">
                     <thead className="bg-slate-50 sticky top-0 z-10">
                         <tr>
                             <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase">Time</th>
@@ -632,33 +632,33 @@ useEffect(() => {
       }
 
       return (
-        <div className="w-full pb-10 space-y-6 animate-in fade-in duration-500 bg-slate-50/30 p-4 rounded-2xl">
+        <div className="w-full pb-10 space-y-4 sm:space-y-6 animate-in fade-in duration-500 bg-slate-50/30 p-2 sm:p-4 rounded-2xl">
           
           {/* HEADER SECTION */}
-          <div className="bg-white border border-slate-100 rounded-2xl p-6 flex flex-col md:flex-row justify-between items-center shadow-sm">
+          <div className="bg-white border border-slate-100 rounded-2xl p-4 sm:p-6 flex flex-col md:flex-row justify-between items-start md:items-center shadow-sm gap-4 md:gap-0">
             <div>
-              <h1 className="text-2xl font-black text-slate-900 tracking-tight">Freezer Van Dashboard</h1>
+              <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Freezer Van Dashboard</h1>
               <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest flex items-center gap-2">
                 <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span> Live System Status
               </p>
             </div>
-            <div className="flex gap-3 mt-4 md:mt-0">
+            <div className="flex flex-wrap gap-3 w-full md:w-auto">
               {/* Hooked up the corrected refresh function here */}
               <button 
                 onClick={handleManualRefresh} 
                 disabled={isRefreshing}
-                className={`p-2 rounded-lg transition-colors ${isRefreshing ? 'animate-spin text-cyan-500' : 'hover:bg-slate-100 text-slate-400'}`}
+                className={`p-2 rounded-lg transition-colors flex-1 md:flex-none flex justify-center items-center ${isRefreshing ? 'animate-spin text-cyan-500' : 'bg-slate-100 hover:bg-slate-200 text-slate-500'}`}
               >
                 <RefreshCw className="w-4 h-4" />
               </button>
-              <button className="bg-slate-900 text-white px-5 py-2.5 rounded-xl text-xs font-bold hover:shadow-lg transition-all active:scale-95">
+              <button className="flex-[3] md:flex-none bg-slate-900 text-white px-5 py-2.5 rounded-xl text-xs font-bold hover:shadow-lg transition-all active:scale-95">
                 Generate Report
               </button>
             </div>
           </div>
 
           {/* KPI GRID */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard title="Today's Sales" value={fvSummary?.daily?.sales} icon={<TrendingUp />} color="text-cyan-600" />
             <StatCard title="Today's Profit" value={fvSummary?.daily?.profit} icon={<Wallet />} color="text-emerald-600" />
             <StatCard title="MTD Sales" value={fvSummary?.monthly?.sales} icon={<Calendar />} color="text-indigo-600" />
@@ -738,9 +738,9 @@ useEffect(() => {
               {React.cloneElement(icon, { size: 18, className: color })}
             </div>
           </div>
-          <div className="mt-4">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{title}</p>
-            <h2 className="text-xl font-black text-slate-900 mt-1">
+          <div className="mt-4 overflow-hidden">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate">{title}</p>
+            <h2 className="text-lg sm:text-xl font-black text-slate-900 mt-1 truncate">
               ₱{value?.toLocaleString() ?? '0'}
             </h2>
           </div>
@@ -771,7 +771,7 @@ useEffect(() => {
         />
 
         {/* --- TOP LEVEL KPI GRID --- */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           <KPICard 
             title="Current Stock" 
             value={`${remainingHeads.toLocaleString()} Heads`} 
@@ -803,7 +803,7 @@ useEffect(() => {
         </div>
 
         {/* --- MIDDLE SECTION: ANALYTICS & STATUS --- */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
           
           {/* 1. STOCK EFFICIENCY & REMAINING BAR */}
           <Card className="lg:col-span-2 flex flex-col shadow-sm border-slate-200 overflow-hidden">
@@ -848,7 +848,7 @@ useEffect(() => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 pt-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
                 <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
                   <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Available Crates</p>
                   <p className="text-xl font-bold text-slate-800">
@@ -870,7 +870,7 @@ useEffect(() => {
             <div className="p-6 border-b border-slate-100 bg-slate-50/50">
               <h3 className="font-bold text-slate-800 text-center">Profitability Ratio</h3>
             </div>
-            <div className="p-6 h-72 relative">
+            <div className="p-4 sm:p-6 h-64 sm:h-72 relative">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie 
@@ -955,9 +955,9 @@ function KPICard({ title, value, icon, color, subtitle, trend, trendDirection = 
             </div>
         )}
       </div>
-      <div>
-        <p className="text-sm font-semibold text-slate-500 mb-1">{title}</p>
-        <h3 className="text-2xl font-bold text-slate-800 tracking-tight font-mono">{value}</h3>
+      <div className="overflow-hidden">
+        <p className="text-sm font-semibold text-slate-500 mb-1 truncate">{title}</p>
+        <h3 className="text-xl sm:text-2xl font-bold text-slate-800 tracking-tight font-mono truncate">{value}</h3>
         {subtitle && <p className="text-xs text-slate-400 mt-1 font-medium">{subtitle}</p>}
       </div>
     </div>

@@ -112,9 +112,9 @@ export default function AuditLogsPage() {
       
       if (v1 !== v2) {
         return (
-          <div key={key} className="flex items-center justify-between text-sm py-2 border-b border-slate-100 last:border-0 hover:bg-slate-50 px-2 rounded">
+          <div key={key} className="flex flex-col sm:flex-row sm:items-center justify-between text-sm py-2 border-b border-slate-100 last:border-0 hover:bg-slate-50 px-2 rounded gap-2 sm:gap-0">
             <span className="font-semibold text-slate-600 capitalize">{key.replace(/_/g, ' ')}:</span>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
               <span className="text-red-500 bg-red-50 px-2 py-0.5 rounded text-xs line-through decoration-red-500/50 font-mono">
                 {v1 !== undefined ? String(v1) : 'N/A'}
               </span>
@@ -134,18 +134,18 @@ export default function AuditLogsPage() {
     <div className="flex flex-col w-full h-[calc(95vh-4rem)] bg-slate-50 overflow-hidden relative">
       
       {/* --- HEADER --- */}
-      <div className="flex-none p-6 pb-2 z-10">
+      <div className="flex-none p-4 sm:p-6 pb-2 z-10">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-800 flex items-center gap-2">
               <History className="text-slate-600 w-6 h-6" /> Audit Trail
             </h1>
             <p className="text-sm text-slate-500 mt-1">Real-time security log of system activities.</p>
           </div>
           
-          <div className="flex flex-wrap gap-2 items-center bg-white p-1.5 rounded-lg border border-slate-200 shadow-sm">
+          <div className="flex flex-wrap gap-2 items-center bg-white p-1.5 rounded-lg border border-slate-200 shadow-sm w-full md:w-auto">
              <select 
-              className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-md text-sm outline-none focus:border-emerald-500 hover:border-slate-300 transition-colors cursor-pointer"
+              className="flex-1 sm:flex-none px-3 py-2 bg-slate-50 border border-slate-200 rounded-md text-sm outline-none focus:border-emerald-500 hover:border-slate-300 transition-colors cursor-pointer"
               value={filters.module}
               onChange={e => setFilters({...filters, module: e.target.value})}
             >
@@ -158,7 +158,7 @@ export default function AuditLogsPage() {
             </select>
 
             <select 
-              className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-md text-sm outline-none focus:border-emerald-500 hover:border-slate-300 transition-colors cursor-pointer"
+              className="flex-1 sm:flex-none px-3 py-2 bg-slate-50 border border-slate-200 rounded-md text-sm outline-none focus:border-emerald-500 hover:border-slate-300 transition-colors cursor-pointer"
               value={filters.action}
               onChange={e => setFilters({...filters, action: e.target.value})}
             >
@@ -172,24 +172,24 @@ export default function AuditLogsPage() {
 
             <div className="h-8 w-px bg-slate-200 mx-1 hidden md:block"></div>
 
-            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-md px-2 py-1.5">
+            <div className="flex flex-1 sm:flex-none items-center justify-between sm:justify-start gap-2 bg-slate-50 border border-slate-200 rounded-md px-2 py-1.5 w-full sm:w-auto overflow-x-auto">
               <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Range</span>
               <input 
                 type="date" 
-                className="text-sm outline-none text-slate-600 bg-transparent w-28 cursor-pointer"
+                className="text-sm outline-none text-slate-600 bg-transparent w-full sm:w-28 cursor-pointer min-w-[100px]"
                 value={filters.startDate}
                 onChange={e => setFilters({...filters, startDate: e.target.value})}
               />
               <span className="text-slate-300">-</span>
               <input 
                 type="date" 
-                className="text-sm outline-none text-slate-600 bg-transparent w-28 cursor-pointer"
+                className="text-sm outline-none text-slate-600 bg-transparent w-full sm:w-28 cursor-pointer min-w-[100px]"
                 value={filters.endDate}
                 onChange={e => setFilters({...filters, endDate: e.target.value})}
               />
             </div>
 
-            <button onClick={fetchLogs} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-md text-sm flex items-center gap-2 transition-all active:scale-95 shadow-sm">
+            <button onClick={fetchLogs} className="flex-1 sm:flex-none justify-center px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-md text-sm flex items-center gap-2 transition-all active:scale-95 shadow-sm">
               <Filter className="w-4 h-4" /> Filter
             </button>
             
@@ -209,9 +209,9 @@ export default function AuditLogsPage() {
       </div>
 
       {/* --- TABLE CONTAINER --- */}
-      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-6 pb-6">
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto custom-scrollbar px-4 sm:px-6 pb-6">
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-          <table className="w-full text-sm text-left border-collapse">
+          <table className="w-full text-sm text-left border-collapse min-w-[800px]">
             <thead className="bg-slate-50/90 backdrop-blur-sm border-b border-slate-200 text-slate-500 font-semibold sticky top-0 z-10 shadow-sm">
               <tr>
                 <th className="p-4 w-64">Actor</th>
@@ -297,7 +297,7 @@ export default function AuditLogsPage() {
 
       {/* --- DIFF VIEWER MODAL --- */}
       {selectedLog && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-2 sm:p-4 animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
             <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
               <h3 className="font-bold text-slate-800 flex items-center gap-2">

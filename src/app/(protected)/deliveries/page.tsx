@@ -162,7 +162,7 @@ export default function DeliveriesPage() {
       <div className="shrink-0 space-y-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-                <h1 className="text-3xl font-bold text-slate-800 flex items-center gap-3">
+                <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 flex items-center gap-2 sm:gap-3">
                     <Truck className="w-8 h-8 text-blue-600" />
                     Logistics & Deliveries
                 </h1>
@@ -245,9 +245,9 @@ export default function DeliveriesPage() {
 
                           return (
                             <div key={field.id} className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm relative group">
-                              <div className="grid grid-cols-12 gap-2 items-center">
+                              <div className="flex flex-col sm:grid sm:grid-cols-12 gap-2 items-start sm:items-center">
                                 {/* Product Select */}
-                                <div className="col-span-7">
+                                <div className="w-full sm:col-span-7">
                                     <label className="block text-[10px] text-slate-400 font-bold uppercase mb-0.5">Item</label>
                                     <select {...register(`items.${index}.productId` as const, { required: true })} className="w-full p-1.5 bg-slate-50 rounded text-sm border border-transparent focus:bg-white focus:border-blue-300 outline-none transition-colors">
                                         <option value="">Select...</option>
@@ -257,22 +257,24 @@ export default function DeliveriesPage() {
                                     </select>
                                 </div>
 
-                                {/* Quantity Input */}
-                                <div className="col-span-4">
-                                    <label className="block text-[10px] text-slate-400 font-bold uppercase mb-0.5">Qty ({quantityLabel})</label>
-                                    <input 
-                                        {...register(`items.${index}.quantity` as const, { required: true, max: stockAvailable })} 
-                                        type="number" step="0.01" 
-                                        className="w-full p-1.5 bg-slate-50 rounded text-sm border border-transparent focus:bg-white focus:border-blue-300 outline-none transition-colors"
-                                        placeholder="0"
-                                    />
-                                </div>
+                                <div className="flex w-full sm:contents gap-2 items-end sm:items-center">
+                                    {/* Quantity Input */}
+                                    <div className="flex-1 sm:col-span-4">
+                                        <label className="block text-[10px] text-slate-400 font-bold uppercase mb-0.5">Qty ({quantityLabel})</label>
+                                        <input 
+                                            {...register(`items.${index}.quantity` as const, { required: true, max: stockAvailable })} 
+                                            type="number" step="0.01" 
+                                            className="w-full p-1.5 bg-slate-50 rounded text-sm border border-transparent focus:bg-white focus:border-blue-300 outline-none transition-colors"
+                                            placeholder="0"
+                                        />
+                                    </div>
 
-                                {/* Remove Action */}
-                                <div className="col-span-1 flex justify-end pt-4">
-                                    <button type="button" onClick={() => remove(index)} className="text-slate-300 hover:text-red-500 transition-colors">
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
+                                    {/* Remove Action */}
+                                    <div className="sm:col-span-1 flex justify-end pb-1 sm:pb-0 sm:pt-4">
+                                        <button type="button" onClick={() => remove(index)} className="text-slate-300 hover:text-red-500 transition-colors p-2 sm:p-0">
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
                                 </div>
                               </div>
                               {/* Stock Validation Msg */}
@@ -317,12 +319,12 @@ export default function DeliveriesPage() {
                 </div>
                 
                 {/* Status Tabs */}
-                <div className="flex bg-slate-50 p-1 rounded-lg border border-slate-100 overflow-x-auto">
+                <div className="flex w-full sm:w-auto bg-slate-50 p-1 rounded-lg border border-slate-100 overflow-x-auto">
                     {['ALL', 'PENDING', 'IN_TRANSIT', 'DELIVERED'].map((status) => (
                         <button
                             key={status}
                             onClick={() => setStatusFilter(status as any)}
-                            className={`px-3 py-1.5 rounded-md text-xs font-bold whitespace-nowrap transition-all ${
+                            className={`flex-1 sm:flex-none px-3 py-1.5 rounded-md text-xs font-bold whitespace-nowrap transition-all ${
                                 statusFilter === status 
                                 ? 'bg-white text-blue-600 shadow-sm' 
                                 : 'text-slate-500 hover:text-slate-700'
@@ -335,8 +337,8 @@ export default function DeliveriesPage() {
               </div>
 
               {/* Scrollable Table (Limited Height) */}
-              <div className="overflow-y-auto h-[600px]">
-                  <table className="w-full text-left text-sm text-slate-600">
+              <div className="overflow-y-auto overflow-x-auto h-[600px] custom-scrollbar">
+                  <table className="w-full text-left text-sm text-slate-600 min-w-[600px]">
                       <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase font-bold text-slate-400 sticky top-0 z-10 shadow-sm">
                           <tr>
                               <th className="px-6 py-4 bg-slate-50">Reference</th>
@@ -387,7 +389,7 @@ export default function DeliveriesPage() {
                                           </Badge>
                                           
                                           {user?.role === 'STAFF' && delivery.status !== 'DELIVERED' && (
-                                              <button onClick={() => setConfirmId(delivery.id)} className="bg-green-600 hover:bg-green-700 text-white pl-2 pr-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition-all active:scale-95 inline-flex items-center gap-1.5 animate-in fade-in slide-in-from-right-2">
+                                              <button onClick={() => setConfirmId(delivery.id)} className="w-full sm:w-auto justify-center bg-green-600 hover:bg-green-700 text-white pl-2 pr-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition-all active:scale-95 inline-flex items-center gap-1.5 animate-in fade-in slide-in-from-right-2">
                                                   <CheckCircle className="w-3.5 h-3.5" /> Receive
                                               </button>
                                           )}
