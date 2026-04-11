@@ -6,9 +6,6 @@ import { useAuth } from './AuthContext';
 
 const SocketContext = createContext<Socket | null>(null);
 
-// 🔴 CRITICAL FIX 1: Change '3000' to whatever port your NestJS backend uses!
-// I am setting it to 3001 here, which is standard, but if your backend terminal says 
-// "Application is running on: http://localhost:8000", change this to 8000.
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001';
 
 export const useSocket = () => {
@@ -23,7 +20,6 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
     if (isAuthenticated) {
       
       const newSocket = io(SOCKET_URL, { 
-        // 🔴 CRITICAL FIX 2: Add 'polling' back as a fallback to guarantee the initial handshake succeeds
         transports: ['websocket', 'polling'], 
       });
 
