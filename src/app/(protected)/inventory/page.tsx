@@ -5,6 +5,8 @@
 
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
+// --- NEW: Import useSocket ---
+import { useSocket } from '../../contexts/SocketContext'; 
 import api from '../../services/api';
 import React, { useEffect, useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
@@ -40,7 +42,7 @@ interface LossRecord {
   heads: number;
   kilos: number;
   reason: string;
-  branchName?: string; // Added to interface
+  branchName?: string; 
 }
 
 interface AddStockFormData {
@@ -72,6 +74,8 @@ interface LossFormData {
 export default function InventoryPage() {
   const { user } = useAuth();
   const { showToast } = useToast();
+  // --- NEW: Initialize socket ---
+  const socket = useSocket(); 
   
   // States
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
@@ -106,7 +110,7 @@ export default function InventoryPage() {
 
   const isLossDressedChicken = lossItem?.product?.name === 'Dressed Chicken';
 
-  // Fetch Data (Cleaned up duplicate useEffect)
+  // Fetch Data 
   const fetchData = async (isManualSync = false) => {
     if (!user) return;
     
@@ -115,7 +119,6 @@ export default function InventoryPage() {
     try {
       const endpoint = user.role === 'OWNER' ? '/inventory/owner' : '/inventory/branch';
       
-      // Use Promise.all to fetch inventory and losses concurrently
       const inventoryPromise = api.get<InventoryItem[]>(endpoint);
       const lossesPromise = user.role === 'OWNER' ? api.get<LossRecord[]>('/inventory/losses') : Promise.resolve({ data: [] });
 
@@ -141,6 +144,26 @@ export default function InventoryPage() {
   useEffect(() => {
     fetchData(false);
   }, [user, refresh]);
+
+  // --- NEW: REAL-TIME AUTO REFRESH ---
+  useEffect(() => {
+    if (!socket) return;
+
+    // By toggling the 'refresh' state, we safely re-trigger the existing useEffect above
+    // without triggering manual Sync toasts or infinite loops!
+    const handleSilentRefresh = () => {
+      setRefresh(prev => !prev);
+    };
+
+    // Listen for inventory updates and sales (which reduce stock)
+    socket.on('inventoryUpdated', handleSilentRefresh);
+    socket.on('newSale', handleSilentRefresh);
+
+    return () => {
+      socket.off('inventoryUpdated', handleSilentRefresh);
+      socket.off('newSale', handleSilentRefresh);
+    };
+  }, [socket]);
 
   // Handler for the Sync Button
   const handleManualSync = () => {
@@ -229,7 +252,7 @@ export default function InventoryPage() {
     }
   };
 
-  // Loss Handler (UPDATED FOR DYNAMIC ROLE ROUTING)
+  // Loss Handler 
   const onSaveLoss = async (data: LossFormData) => {
     if (!lossItem) return;
     try {
@@ -575,7 +598,7 @@ export default function InventoryPage() {
       </div>
 
       {/* ========================================= */}
-      {/* MODALS                      */}
+      {/* MODALS                              */}
       {/* ========================================= */}
 
       {/* --- ADD NEW STOCK MODAL --- */}

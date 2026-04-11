@@ -1,9 +1,13 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
 import { useState, useEffect } from 'react';
 import api from '@/app/services/api';
 import { useAuth } from '@/app/contexts/AuthContext';
+// --- NEW: Import useSocket ---
+import { useSocket } from '@/app/contexts/SocketContext'; 
 import { useToast } from '@/app/contexts/ToastContext';
 import { 
   ClipboardList, Plus, Trash2, Send, CheckCircle, 
@@ -30,6 +34,8 @@ interface StockRequest {
 
 export default function StockRequestPage() {
   const { user } = useAuth();
+  // --- NEW: Initialize Socket ---
+  const socket = useSocket(); 
   const { showToast } = useToast();
   
   const [requests, setRequests] = useState<StockRequest[]>([]);
@@ -62,8 +68,28 @@ export default function StockRequestPage() {
 
   useEffect(() => {
     if (user) fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  // --- REAL-TIME AUTO REFRESH (FIXED STALE CLOSURE) ---
+  useEffect(() => {
+    if (!socket || !user) return; 
+
+    const handleSilentRefresh = (data?: any) => {
+      // --- ADD THIS LOG ---
+      console.log("SOCKET EVENT RECEIVED IN UI! Fetching fresh data...", data); 
+      fetchData(); 
+    };
+
+    socket.on('newStockRequest', handleSilentRefresh);
+    socket.on('stockRequestUpdated', handleSilentRefresh);
+    socket.on('inventoryUpdated', handleSilentRefresh);
+
+    return () => {
+      socket.off('newStockRequest', handleSilentRefresh);
+      socket.off('stockRequestUpdated', handleSilentRefresh);
+      socket.off('inventoryUpdated', handleSilentRefresh);
+    };
+  }, [socket, user]);
 
   // --- STAFF HANDLERS ---
   const addItemToList = () => {
@@ -335,7 +361,7 @@ export default function StockRequestPage() {
                      actionModal?.action === 'APPROVED' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'
                   }`}
                >
-                  Confirm {actionModal?.action === 'APPROVED' ? 'Approval' : 'Rejection'}
+                 Confirm {actionModal?.action === 'APPROVED' ? 'Approval' : 'Rejection'}
                </button>
             </div>
          </div>

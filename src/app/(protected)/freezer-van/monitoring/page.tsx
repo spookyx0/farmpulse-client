@@ -3,7 +3,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { useToast } from '@/app/contexts/ToastContext';
-import api from '@/app/services/api'; // Re-enabled the API
+// --- NEW: Import useSocket ---
+import { useSocket } from '@/app/contexts/SocketContext';
+import api from '@/app/services/api'; 
 import { 
   Truck, Snowflake, TrendingUp, AlertTriangle, 
   RefreshCw, Download, MapPin, Package, DollarSign
@@ -34,13 +36,14 @@ interface FleetSummary {
 
 export default function FreezerVanMonitoringPage() {
   const { showToast } = useToast();
+  // --- NEW: Initialize socket ---
+  const socket = useSocket();
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState<FleetSummary | null>(null);
 
   const fetchFleetData = async () => {
     setLoading(true);
     try {
-      // Fetching REAL-TIME data from your NestJS backend
       const res = await api.get('/dashboard/owner/freezer-vans');
       setSummary(res.data);
     } catch {
@@ -50,9 +53,32 @@ export default function FreezerVanMonitoringPage() {
     }
   };
 
+  // Initial fetch on page load
   useEffect(() => {
     fetchFleetData();
   }, []);
+
+  // --- NEW: REAL-TIME AUTO REFRESH ---
+  useEffect(() => {
+    if (!socket) return;
+
+    // Trigger a silent refresh when relevant data changes globally
+    const handleSilentRefresh = () => {
+      fetchFleetData();
+    };
+
+    // Listen for any events that affect Van operations or Master Inventory
+    socket.on('newSale', handleSilentRefresh);
+    socket.on('inventoryUpdated', handleSilentRefresh);
+    socket.on('newExpense', handleSilentRefresh);
+
+    // Cleanup listeners when component unmounts
+    return () => {
+      socket.off('newSale', handleSilentRefresh);
+      socket.off('inventoryUpdated', handleSilentRefresh);
+      socket.off('newExpense', handleSilentRefresh);
+    };
+  }, [socket]);
 
   return (
     <div className="p-2 md:p-6 space-y-6 bg-slate-50 min-h-screen">

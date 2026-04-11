@@ -3,6 +3,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { useToast } from '@/app/contexts/ToastContext';
+// --- NEW: Import useSocket ---
+import { useSocket } from '@/app/contexts/SocketContext';
 import api from '@/app/services/api'; // Re-enabled API
 import { 
   Egg, TrendingDown, Activity, AlertTriangle, 
@@ -35,6 +37,8 @@ interface LiveChickenSummary {
 
 export default function LiveChickenMonitoringPage() {
   const { showToast } = useToast();
+  // --- NEW: Initialize socket ---
+  const socket = useSocket();
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState<LiveChickenSummary | null>(null);
 
@@ -51,9 +55,32 @@ export default function LiveChickenMonitoringPage() {
     }
   };
 
+  // Initial fetch on page load
   useEffect(() => {
     fetchLiveChickenData();
   }, []);
+
+  // --- NEW: REAL-TIME AUTO REFRESH ---
+  useEffect(() => {
+    if (!socket) return;
+
+    // Trigger a silent refresh when relevant data changes globally
+    const handleSilentRefresh = () => {
+      fetchLiveChickenData();
+    };
+
+    // Listen for any events that affect Live Chicken operations or Inventory (including mortalities)
+    socket.on('newSale', handleSilentRefresh);
+    socket.on('inventoryUpdated', handleSilentRefresh); 
+    socket.on('newExpense', handleSilentRefresh);
+
+    // Cleanup listeners when component unmounts
+    return () => {
+      socket.off('newSale', handleSilentRefresh);
+      socket.off('inventoryUpdated', handleSilentRefresh);
+      socket.off('newExpense', handleSilentRefresh);
+    };
+  }, [socket]);
 
   return (
     <div className="p-2 md:p-6 space-y-6 bg-slate-50 min-h-screen">

@@ -88,8 +88,12 @@ export default function DeliveriesPage() {
    
   }, [user]);
 
+  // --- REAL-TIME AUTO REFRESH (FIXED STALE CLOSURE) ---
   useEffect(() => {
-    if (!socket) return;
+    // FIX: Ensure both socket and user exist before attaching listeners
+    if (!socket || !user) return;
+
+    // 1. Specific Delivery Event Handlers (UI updates + Toasts)
     const handleUpdate = (updatedDelivery: Delivery) => {
         setDeliveries((prev) => {
             const exists = prev.find((d) => d.id === updatedDelivery.id);
@@ -99,22 +103,31 @@ export default function DeliveriesPage() {
             showToast(`Delivery #${updatedDelivery.id} received by branch.`, 'success');
         }
     };
+    
     const handleNew = (newDel: Delivery) => {
         setDeliveries((prev) => {
             if (prev.find(d => d.id === newDel.id)) return prev;
             return [newDel, ...prev];
         });
-        if (user?.role === 'OWNER') fetchData();
+        if (user?.role === 'OWNER') fetchData(); // Refresh owner's view completely
     };
 
+    // 2. Generic Data Refresh (For when inventory drops due to a delivery dispatch)
+    const handleSilentRefresh = () => {
+        fetchData();
+    };
+
+    // Listeners
     socket.on('deliveryUpdated', handleUpdate);
     socket.on('newDelivery', handleNew);
+    socket.on('inventoryUpdated', handleSilentRefresh); 
 
     return () => { 
         socket.off('deliveryUpdated', handleUpdate);
         socket.off('newDelivery', handleNew);
+        socket.off('inventoryUpdated', handleSilentRefresh);
     };
-  }, [socket, showToast, user]);
+  }, [socket, showToast, user]); // <-- FIX: Added 'user' to this dependency array
 
   const onCreateDelivery = async (data: DeliveryFormData) => {
     try {
@@ -206,7 +219,7 @@ export default function DeliveriesPage() {
         
         {/* --- LEFT COLUMN: Create Delivery (Owner Only) --- */}
         {user?.role === 'OWNER' && (
-          <div className="xl:col-span-4 h-full overflow-y-auto pr-1">
+          <div className="xl:col-span-4 h-full overflow-y-auto pr-1 custom-scrollbar">
             <Card className="border-t-4 border-t-blue-600 shadow-lg sticky top-0">
               <CardHeader title="Dispatch New Shipment" subtitle="Create a manifest to send stock." />
               <CardContent>
