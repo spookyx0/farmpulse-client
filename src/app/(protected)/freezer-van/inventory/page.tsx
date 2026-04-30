@@ -40,7 +40,10 @@ interface FVInventoryFormData {
   other_expense: string;
 }
 
-const STOCK_OPTIONS = ["Intestine", "Liver", "Gizzard", "Spleen", "Feet", "Fats", "Whole Chicken", "Choice Cuts"];
+// Removed "Spleen", "Fats", "Choice Cuts". Added "Heads", "Butse", "Dugo"
+const STOCK_OPTIONS = [
+  "Whole Chicken", "Intestine", "Liver", "Gizzard", "Feet", "Heads", "Butse", "Dugo"
+];
 
 export default function FreezerVanInventoryPage() {
   const { showToast } = useToast();
@@ -53,7 +56,11 @@ export default function FreezerVanInventoryPage() {
   // --- STATE FOR EDITING ---
   const [editingId, setEditingId] = useState<number | null>(null);
 
-  const { register, handleSubmit, reset, watch } = useForm<FVInventoryFormData>();
+  const { register, handleSubmit, reset, watch, setValue } = useForm<FVInventoryFormData>();
+
+  // Watch the particulars to determine if EXPENSE fields should be disabled
+  const selectedParticular = watch("particulars");
+  const isParticularPart = !!selectedParticular && selectedParticular !== "Whole Chicken";
 
   const fetchItems = () => {
     api.get<FVInventoryItem[]>('/freezer-van/inventory')
@@ -111,6 +118,13 @@ export default function FreezerVanInventoryPage() {
 
   // --- FORM SUBMISSION (CREATE & UPDATE) ---
   const onSubmit = async (data: any) => {
+    // Manual validation ensures RHF doesn't block submission
+    // Now applies to ALL items since Unit Price is open
+    if (!data.price || Number(data.price) <= 0) {
+      showToast('Please enter a valid Unit Price.', 'error');
+      return;
+    }
+
     setIsLoading(true);
     try {
       const cleanData = {
@@ -119,9 +133,10 @@ export default function FreezerVanInventoryPage() {
         particulars: data.particulars,
         kilos: Number(data.kilos),
         crates: Number(data.crates || 0),
-        price: Number(data.price),
-        travel_expense: Number(data.travel_expense || 0),
-        other_expense: Number(data.other_expense || 0),
+        price: Number(data.price || 0),
+        // Keep overhead expenses locked to main chicken batch to avoid double counting
+        travel_expense: isParticularPart ? 0 : Number(data.travel_expense || 0),
+        other_expense: isParticularPart ? 0 : Number(data.other_expense || 0),
       };
 
       if (editingId) {
@@ -230,24 +245,47 @@ export default function FreezerVanInventoryPage() {
                       <input type="number" step="0.01" {...register('kilos', {required: true})} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none" />
                     </div>
 
+                    {/* Crates are now always accessible */}
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Crates</label>
-                      <input type="number" {...register('crates')} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none" />
+                      <input 
+                        type="number" 
+                        {...register('crates')} 
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:ring-2 focus:ring-cyan-500/20" 
+                      />
                     </div>
 
+                    {/* Unit price is now always accessible */}
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Unit Price</label>
-                      <input type="number" step="0.01" {...register('price', {required: true})} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none" />
+                      <input 
+                        type="number" 
+                        step="0.01" 
+                        {...register('price')} 
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:ring-2 focus:ring-cyan-500/20" 
+                      />
                     </div>
 
                     <div>
                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Travel Exp.</label>
-                       <input type="number" step="0.01" {...register('travel_expense')} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none" />
+                       <input 
+                        type="number" 
+                        step="0.01" 
+                        disabled={isParticularPart}
+                        {...register('travel_expense')} 
+                        className={`w-full px-4 py-2.5 rounded-xl text-sm border outline-none transition-all ${isParticularPart ? 'bg-slate-100 border-slate-100 text-slate-400 cursor-not-allowed' : 'bg-slate-50 border-slate-200 focus:bg-white focus:ring-2 focus:ring-cyan-500/20'}`} 
+                      />
                     </div>
 
                     <div className="sm:col-span-2">
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Other Overhead Expenses</label>
-                      <input type="number" step="0.01" {...register('other_expense')} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none" />
+                      <input 
+                        type="number" 
+                        step="0.01" 
+                        disabled={isParticularPart}
+                        {...register('other_expense')} 
+                        className={`w-full px-4 py-2.5 rounded-xl text-sm border outline-none transition-all ${isParticularPart ? 'bg-slate-100 border-slate-100 text-slate-400 cursor-not-allowed' : 'bg-slate-50 border-slate-200 focus:bg-white focus:ring-2 focus:ring-cyan-500/20'}`} 
+                      />
                     </div>
                   </div>
 
@@ -308,7 +346,7 @@ export default function FreezerVanInventoryPage() {
                       <th className="px-6 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">Qty / Crates</th>
                       <th className="px-6 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-right">Base Amount</th>
                       <th className="px-6 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-right">Expenses</th>
-                      <th className="px-6 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-right">Net Profit</th>
+                      <th className="px-6 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-right">Net Value</th>
                       <th className="px-6 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">Actions</th>
                     </tr>
                   </thead>
@@ -318,26 +356,30 @@ export default function FreezerVanInventoryPage() {
                         <td className="px-6 py-4 text-sm font-bold text-slate-600">{item.date}</td>
                         <td className="px-6 py-4">
                           <div className="flex flex-col">
-                            <span className="text-sm font-black text-slate-900">{item.particulars}</span>
+                            <span className={`text-sm font-black tracking-tight ${item.particulars === 'Whole Chicken' ? 'text-slate-900' : 'text-slate-600'}`}>
+                              {item.particulars}
+                            </span>
                             <span className="text-[10px] text-slate-400 font-bold uppercase">System ID: {item.id}</span>
                           </div>
                         </td>
                         <td className="px-6 py-4 text-center">
                           <div className="flex flex-col items-center">
                             <span className="text-sm font-black text-slate-700">{item.kilos} kg</span>
-                            <span className="text-[10px] px-2 py-0.5 bg-slate-100 rounded text-slate-500 font-bold uppercase tracking-tighter">
+                            <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-tighter ${item.particulars === 'Whole Chicken' ? 'bg-cyan-50 text-cyan-600' : 'bg-slate-100 text-slate-500'}`}>
                               {item.crates || 0} Crates
                             </span>
                           </div>
                         </td>
                         <td className="px-6 py-4 text-right text-sm font-bold text-slate-600">
-                          ₱{Number(item.amount).toLocaleString()}
+                          ₱{Number(item.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <span className="text-xs font-bold text-rose-500">-₱{(Number(item.travel_expense) + Number(item.other_expense)).toLocaleString()}</span>
+                          <span className="text-xs font-bold text-rose-500">
+                            -₱{(Number(item.travel_expense || 0) + Number(item.other_expense || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </span>
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <span className="text-base font-black text-cyan-600">
+                          <span className={`text-base font-black ${item.particulars === 'Whole Chicken' ? 'text-cyan-600' : 'text-slate-600'}`}>
                             ₱{Number(item.total_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                           </span>
                         </td>
