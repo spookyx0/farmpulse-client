@@ -5,7 +5,6 @@
 
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
-// --- NEW: Import useSocket ---
 import { useSocket } from '../../contexts/SocketContext'; 
 import api from '../../services/api';
 import React, { useEffect, useState, useMemo } from 'react';
@@ -74,7 +73,6 @@ interface LossFormData {
 export default function InventoryPage() {
   const { user } = useAuth();
   const { showToast } = useToast();
-  // --- NEW: Initialize socket ---
   const socket = useSocket(); 
   
   // States
@@ -145,17 +143,14 @@ export default function InventoryPage() {
     fetchData(false);
   }, [user, refresh]);
 
-  // --- NEW: REAL-TIME AUTO REFRESH ---
+  // --- REAL-TIME AUTO REFRESH ---
   useEffect(() => {
     if (!socket) return;
 
-    // By toggling the 'refresh' state, we safely re-trigger the existing useEffect above
-    // without triggering manual Sync toasts or infinite loops!
     const handleSilentRefresh = () => {
       setRefresh(prev => !prev);
     };
 
-    // Listen for inventory updates and sales (which reduce stock)
     socket.on('inventoryUpdated', handleSilentRefresh);
     socket.on('newSale', handleSilentRefresh);
 
@@ -174,10 +169,15 @@ export default function InventoryPage() {
   const stats = useMemo(() => {
     const totalItems = inventory.length;
     const lowStock = inventory.filter(i => i.quantity <= 20).length; 
+    
+    // Updated Total Value calculation logic: (Quantity * Selling Price) - Purchase Cost
     const totalValue = inventory.reduce((acc, curr) => {
-        const price = Number(curr.purchase_price || 0);
-        return acc + (price * curr.quantity);
+        const purchaseCost = Number(curr.purchase_price || 0);
+        const sellingPrice = Number(curr.selling_price || curr.product?.selling_price || 0);
+        const value = (curr.quantity * sellingPrice) - purchaseCost;
+        return acc + value;
     }, 0);
+    
     return { totalItems, lowStock, totalValue };
   }, [inventory]);
 
@@ -358,7 +358,7 @@ export default function InventoryPage() {
           <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between group hover:border-emerald-200 transition-colors">
             <div>
               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Est. Stock Value</p>
-              <p className="text-3xl font-black text-emerald-600 mt-1">₱{stats.totalValue.toLocaleString()}</p>
+              <p className="text-3xl font-black text-emerald-600 mt-1">₱{stats.totalValue.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
             </div>
             <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform">
               <DollarSign className="w-6 h-6" />
@@ -434,6 +434,7 @@ export default function InventoryPage() {
                     <>
                       <th className="px-6 py-4 text-right">Purchase (Cost)</th>
                       <th className="px-6 py-4 text-right">Selling Price</th>
+                      <th className="px-6 py-4 text-right">Stock Value</th>
                       <th className="px-6 py-4 text-center">Manage</th>
                     </>
                   )}
@@ -446,7 +447,12 @@ export default function InventoryPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredInventory.map((item) => (
+                {filteredInventory.map((item) => {
+                  const itemPurchase = Number(item.purchase_price || 0);
+                  const itemSelling = Number(item.selling_price || item.product?.selling_price || 0);
+                  const itemStockValue = (item.quantity * itemSelling) - itemPurchase;
+
+                  return (
                   <tr key={item.id} className="hover:bg-slate-50 transition-colors group">
                     <td className="px-6 py-4">
                         <div className="flex items-center gap-4">
@@ -482,10 +488,13 @@ export default function InventoryPage() {
                     {user?.role === 'OWNER' && (
                       <>
                         <td className="px-6 py-4 text-right">
-                          <span className="font-medium text-slate-500">₱{Number(item.purchase_price || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          <span className="font-medium text-slate-500">₱{itemPurchase.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <span className="font-bold text-slate-900">₱{Number(item.selling_price || item.product?.selling_price || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          <span className="font-medium text-slate-700">₱{itemSelling.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <span className="font-bold text-emerald-600">₱{itemStockValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                         </td>
                         <td className="px-6 py-4 text-center">
                           <div className="flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -519,11 +528,11 @@ export default function InventoryPage() {
                       </>
                     )}
                   </tr>
-                ))}
+                )})}
                 
                 {filteredInventory.length === 0 && (
                   <tr>
-                    <td colSpan={user?.role === 'OWNER' ? 5 : 3} className="px-6 py-24 text-center">
+                    <td colSpan={user?.role === 'OWNER' ? 6 : 3} className="px-6 py-24 text-center">
                       <div className="flex flex-col items-center justify-center text-slate-400">
                         <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
                           <Search className="w-8 h-8 opacity-50" />
